@@ -1,0 +1,54 @@
+## Visual Studio 默认忽略模板 ##
+## 来源：https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
+
+# 用户特定文件
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# 编译生成文件
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# NuGet 缓存
+.nuget/
+packages/
+
+# VS 缓存目录
+.vs/
+
+# 代码分析文件
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+
+# 测试结果
+TestResult.xml
+
+# 本地配置
+_ReSharper.Caches/
+*.DotSettings.user
+
+# 项目引用缓存
+*.cachefile
+
+# 其他生成文件
+*.pyc
+*.ipch
+*.iobj
+*.ipdb
+*.dbmdl
+
