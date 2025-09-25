@@ -1,0 +1,7 @@
+# 强制所有文本文件使用 LF 换行符（Unix风格）
+* text=auto eol=lf
+
+# 但 Windows 项目文件保留 CRLF
+*.sln text eol=crlf
+*.csproj text eol=crlf
+*.vcxproj text eol=crlf
