@@ -1,6 +1,7 @@
 ## Visual Studio 默认忽略模板 ##
 ## 来源：https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
-
+build/
+out/
 # 用户特定文件
 *.suo
 *.user
