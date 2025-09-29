@@ -81,13 +81,16 @@ mat<4, 4> Camera::GetOrthographicMatrix()
 void Camera::GenerateLookAtMatrix()
 {
 	vec<3> CameraZ = m_target - m_position;  //×óÊÖ×ø±êÏµ
+	//CameraZ = vec<3>{ 0,0,0 }-CameraZ;
 	vec<3> CameraZ_normal = normalized(CameraZ);
 
 	vec<3> CameraX = cross(m_updirection, CameraZ_normal);
+	//CameraX = vec<3>{ 0,0,0 }- normalized(CameraX);
 	vec<3> CameraX_normal = normalized(CameraX);
 
-	vec<3> CameraY = cross(CameraZ_normal, CameraX_normal);
-	vec<3> CameraY_normal = normalized(CameraY);
+	//	vec<3> CameraY = cross(CameraZ_normal, CameraX_normal);
+	m_updirection = vec<3>{ 0,0,0 } - m_updirection;
+	vec<3> CameraY_normal = normalized(m_updirection);
 
 	mat<4, 4> Camera{ {
 		{CameraX_normal.x,CameraY_normal.x,CameraZ_normal.x,0},
@@ -105,8 +108,24 @@ void Camera::GenerateLookAtMatrix()
 
 	mat<4, 4> Camera_T = Camera.transpose();
 
+	mat<4, 4> ry180 = { { {-1, 0, 0, 0},
+						{0, 1, 0, 0 },
+						{ 0, 0,-1, 0},
+						{0, 0, 0, 1}
+	} };
+	mat<4, 4> ry90 = { { {0, 0, 1, 0},
+						{0, 1, 0, 0 },
+						{ -1, 0,0, 0},
+						{0, 0, 0, 1}
+	} };
+	mat<4, 4> rx180 = { { {1, 0, 0, 0},
+						{0, -1, 0, 0 },
+						{ 0, 0,-1, 0},
+						{0, 0, 0, 1}
+	} };
 
 	m_lookAtMatrix = Camera_T * MoveToPosition;
+
 }
 
 void Camera::GenerateProjectionMatrix()

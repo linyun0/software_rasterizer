@@ -2,6 +2,7 @@
 #include "DrawAreaWidget.h"
 #include "ControlDockWidgetCmd.h"
 #include <qdockwidget.h>
+
 TinyRenderMainWindow::TinyRenderMainWindow(QWidget* parent):QMainWindow(parent)
 {
 	m_drawArea = new DrawAreaWidget(this);

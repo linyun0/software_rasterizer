@@ -17,7 +17,8 @@ public:
     bool gammaCorrection;
 
     // constructor, expects a filepath to a 3D model.
-    Model(std::string const& path= "D:\\Download\\Learning-master\\Learning-master\\GAMES101\\Homework\\Hw3\\Assignment3\\Code\\models\\spot\\spot_triangulated_good.obj", bool gamma = false);
+   // Model(std::string const& path= "D:\\Download\\Learning-master\\Learning-master\\GAMES101\\Homework\\Hw3\\Assignment3\\Code\\models\\spot\\spot_triangulated_good.obj", bool gamma = false);
+    Model(std::string const& path= "D:\\Download\\Learning-master\\Learning-master\\GAMES101\\Homework\\Hw3\\Assignment3\\Code\\models\\cube\\cube.obj", bool gamma = false);
     std::vector<Mesh> GetMeshs();
     // draws the model, and thus all its meshes
 

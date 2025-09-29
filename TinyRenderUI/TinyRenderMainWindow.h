@@ -1,7 +1,7 @@
 #pragma once
 #include <QWidget>
 #include <qmainwindow.h>
-
+#include <QHBoxLayout>
 class DrawAreaWidget;
 class ControlDockWidgetCmd;
 class DialogCmd;
@@ -14,5 +14,5 @@ private:
 	DrawAreaWidget* m_drawArea = nullptr;
 	DialogCmd* cmd = nullptr;
 	QDockWidget* m_dockWidget = nullptr;
-
+	
 };

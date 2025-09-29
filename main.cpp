@@ -5,9 +5,11 @@
 #include <QtWidgets/QApplication>
 #include "TinyRenderUI/TinyRenderMainWindow.h"
 
+
+
+
 int main(int argc, char* argv[])
 {
-
 	QApplication a(argc, argv);
 	TinyRenderMainWindow mainWindow;
     mainWindow.show();

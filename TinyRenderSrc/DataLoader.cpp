@@ -95,6 +95,14 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 
         vertices.push_back(vertex);
     }
+    // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++)
+    {
+        aiFace face = mesh->mFaces[i];
+        // retrieve all indices of the face and store them in the indices vector
+        for (unsigned int j = 0; j < face.mNumIndices; j++)
+            indices.push_back(face.mIndices[j]);
+    }
     // process materials
     aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
     // we assume a convention for sampler names in the shaders. Each diffuse texture should be named

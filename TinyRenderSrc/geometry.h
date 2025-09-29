@@ -3,7 +3,9 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
-
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp> // 用于 glm::to_string
 template<int n> struct vec {
     double data[n] = { 0 };
     double& operator[](const int i) { assert(i >= 0 && i < n); return data[i]; }
@@ -135,9 +137,23 @@ template<int nrows, int ncols> vec<nrows> operator*(const mat<nrows, ncols>& lhs
 
 template<int R1, int C1, int C2>mat<R1, C2> operator*(const mat<R1, C1>& lhs, const mat<C1, C2>& rhs) {
     mat<R1, C2> result;
-    for (int i = R1; i--; )
-        for (int j = C2; j--; )
-            for (int k = C1; k--; result[i][j] += lhs[i][k] * rhs[k][j]);
+
+    // 初始化结果矩阵为零
+    for (int i = 0; i < R1; ++i) {
+        for (int j = 0; j < C2; ++j) {
+            result[i][j] = 0;
+        }
+    }
+
+    // 执行矩阵乘法
+    for (int i = 0; i < R1; ++i) {            // 遍历左矩阵的行
+        for (int j = 0; j < C2; ++j) {        // 遍历右矩阵的列
+            for (int k = 0; k < C1; ++k) {    // 遍历左矩阵的列/右矩阵的行
+                result[i][j] += lhs[i][k] * rhs[k][j];
+            }
+        }
+    }
+
     return result;
 }
 
@@ -203,11 +219,12 @@ template<> struct dt<1> {   // template specialization to stop the recursion
 
 struct Vertex
 {
-    vec3 Position;
-    vec3 Normal;
-    vec2 TexCoords;
-    vec3 Tangent;
-    vec3 Bitangent;
+    glm::vec3 Position;
+    glm::vec3 mvpPosition;
+    glm::vec3 Normal;
+    glm::vec2 TexCoords;
+    glm::vec3 Tangent;
+    glm::vec3 Bitangent;
     //bone indexes which will influence this vertex
     int m_BoneIDs[MAX_BONE_INFLUENCE];
     //weights from each bone

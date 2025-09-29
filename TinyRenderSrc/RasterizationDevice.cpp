@@ -76,7 +76,7 @@ void RasterizationDevice::SetViewPortSize(const QSize& size)
 
 void RasterizationDevice::StartRending()
 {
-	ImageBuffer[1]->fill(Qt::white);
+	ImageBuffer[1]->fill(Qt::black);
 }
 double doublemin(const double& a, const double& b) {
 	return a < b ? a : b;
