@@ -219,12 +219,12 @@ template<> struct dt<1> {   // template specialization to stop the recursion
 
 struct Vertex
 {
-    glm::vec3 Position;
-    glm::vec3 mvpPosition;
-    glm::vec3 Normal;
-    glm::vec2 TexCoords;
-    glm::vec3 Tangent;
-    glm::vec3 Bitangent;
+    vec3 Position;
+    vec3 mvpPosition;
+    vec3 Normal;
+    vec2 TexCoords;
+    vec3 Tangent;
+    vec3 Bitangent;
     //bone indexes which will influence this vertex
     int m_BoneIDs[MAX_BONE_INFLUENCE];
     //weights from each bone
