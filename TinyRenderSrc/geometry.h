@@ -6,6 +6,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp> // ”√”⁄ glm::to_string
+
+typedef unsigned char u08;
+#define MY_PI 3.1415926
+#define TWO_PI (2.0* MY_PI)
+
 template<int n> struct vec {
     double data[n] = { 0 };
     double& operator[](const int i) { assert(i >= 0 && i < n); return data[i]; }
@@ -219,12 +224,14 @@ template<> struct dt<1> {   // template specialization to stop the recursion
 
 struct Vertex
 {
-    vec3 Position;
-    vec3 mvpPosition;
-    vec3 Normal;
-    vec2 TexCoords;
-    vec3 Tangent;
-    vec3 Bitangent;
+    glm::vec3 Position;
+    glm::vec3 mvPosition;
+    glm::vec3 mvpPosition;
+    glm::vec3 Normal;
+    glm::vec3 mvNormal;
+    glm::vec2 TexCoords;
+    glm::vec3 Tangent;
+    glm::vec3 Bitangent;
     //bone indexes which will influence this vertex
     int m_BoneIDs[MAX_BONE_INFLUENCE];
     //weights from each bone

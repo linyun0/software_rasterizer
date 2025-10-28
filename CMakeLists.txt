@@ -4,7 +4,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED 17)
 set(Qt5_DIR "D:/Program/QT/QT/5.15.2/msvc2019_64/lib/cmake/Qt5")
 set(glm_DIR Dependence/glm/share/glm)
-
+set(Eigen3_DIR ${PROJECT_SOURCE_DIR}/Dependence/eigen3)
+find_package(Eigen3 REQUIRED)
 find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
 if(NOT Qt5_FOUND)
     message(FATAL_ERROR "Qt5 not found!")
@@ -24,7 +25,8 @@ file(GLOB SOURCE_DIR ${PROJECT_SOURCE_DIR}/*.cpp ${PROJECT_SOURCE_DIR}/*.h
 message(${SOURCE_DIR})
 message(${Qt5_DIR})
 
-add_executable(MyTinyRender ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS})
+add_subdirectory(${PROJECT_SOURCE_DIR}/Dependence/eigen3)
+add_executable(MyTinyRender ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS} "TinyRenderSrc/Triangle.h" "TinyRenderSrc/Triangle.cpp" "TinyRenderSrc/MVPTransformer.h" "TinyRenderSrc/Shader.h")
 find_package(glm CONFIG REQUIRED)
 
 
@@ -36,4 +38,5 @@ Qt5::Core
 Qt5::Widgets
 Qt5::Gui  # œ‘ Ω
 glm::glm
+eigen
 )
