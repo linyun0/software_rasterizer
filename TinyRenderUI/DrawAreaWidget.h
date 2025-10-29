@@ -18,6 +18,12 @@ public:
 	void SetTtriangle(std::vector<Triangle*> triangleList);
 	void SetMVPTransformer(MVPTransformer* transformer);
 	void Draw();
+
+	void SetModeArc(const float& angle, const float& scale);
+private:
+	void BuildConnection();
+	void BreakConnection();
+
 private:
 	void resizeEvent(QResizeEvent* event) override;
 	void paintEvent(QPaintEvent* event) override;
@@ -32,4 +38,5 @@ private:
 	QTimer m_timer;
 	std::vector<Triangle*> TriangleList;
 	MVPTransformer* mvptransformer=nullptr;
+	float m_testangle = 0;
 };

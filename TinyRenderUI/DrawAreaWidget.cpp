@@ -5,6 +5,7 @@
 #include "../TinyRenderSrc/MVPTransformer.h"
 #include "../TinyRenderSrc/RasterizationDevice.h"
 #include <qpainter.h>
+#include <QApplication>
 DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 
 	m_camera = new Camera;
@@ -21,6 +22,7 @@ DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 	OpenModelFile();
 	
 	mvptransformer = new MVPTransformer();
+//	mvptransformer->SetModelArc(60, 2);
 	for (auto mesh : m_model->meshes) {
 		for (int i = 0; i < mesh.m_vertices.size(); i+=3) {
 			Triangle* t = new Triangle();
@@ -41,14 +43,21 @@ DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 	m_showImage = m_device->GetImage();
 	m_device->SetTriangles(TriangleList);
 	m_device->SetMVPTransformer(mvptransformer);
-	m_device->Draw();
+	//m_device->Draw();
 //	m_device->RenderPointsImage(mvp_perspective_vertex,QColor(255,0,0));
 //	m_device->RenderWireFrameImage(mvp_perspective_vertex,QColor(255,0,0));
 	
 //	m_device->RenderImage(mvp_perspective_vertex); 
-
-	//connect(&m_timer, &QTimer::timeout, this, &DrawAreaWidget::Render);
-	//m_timer.start(2);
+	
+	//connect(&m_timer, &QTimer::timeout, this,[=](){
+	//	m_testangle += 30;
+	//	if (m_testangle > 360) {
+	//		m_testangle = 0;
+	//	}
+	//	mvptransformer->SetModelArc(m_testangle, 3);
+	//	m_device->Draw();
+	//	});
+	//m_timer.start(10);
 
 }
 
@@ -59,12 +68,9 @@ void DrawAreaWidget::Render() {
 
 void DrawAreaWidget::showEvent(QShowEvent* event)
 {
-	//QSize size = this->size();
-	//if (m_device)
-	//{
-	//	m_device->SetImageSize(size);
-	//	m_device->Draw();
-	//}
+	QSize size = this->size();
+	m_device->SetImageSize(size);
+	m_device->Draw();
 	QWidget::showEvent(event);
 }
 
@@ -157,9 +163,28 @@ void DrawAreaWidget::Draw()
 
 
 }
+void DrawAreaWidget::SetModeArc(const float& angle, const float& scale)
+{
+	mvptransformer->SetModelArc(angle, scale);
+	QApplication::setOverrideCursor(Qt::WaitCursor);
+	m_device->Draw();
+	this->update();
+	QApplication::restoreOverrideCursor();
+}
+void DrawAreaWidget::BuildConnection()
+{
+}
+void DrawAreaWidget::BreakConnection()
+{
+}
 void DrawAreaWidget::resizeEvent(QResizeEvent* event)
 {
-	m_device->SetViewPortSize(this->size());
+	QSize size = this->size();
+	bool isShow = this->isVisible();
+	if (isShow) {
+		m_device->SetImageSize(size);
+		m_device->Draw();
+	}
 	QWidget::resizeEvent(event);
 
 }

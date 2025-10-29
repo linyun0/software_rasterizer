@@ -294,7 +294,6 @@ private:
 
 	}
 
-	void testSave();
 	void rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>&  view_pos);
 	//void set_pixel(const double& point, const double& color);
 	void set_pixel(const Eigen::Vector2i& point, const Eigen::Vector3f& color);

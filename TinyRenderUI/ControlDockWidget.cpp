@@ -24,10 +24,11 @@ ControlDockWidget::ControlDockWidget(QWidget* parent, DialogCmd* cmd)
     m_mainLayout->setMargin(0);
     m_mainLayout->setSpacing(0);
 
-    QPushButton* SubjectButton1 = new QPushButton("LoadData", m_container);
+    QPushButton* SubjectButton1 = new QPushButton(("Rotation"), m_container);
     SubjectButton1->setObjectName("LoadDataPushButton");
     // connect(m_toggleButton, &QPushButton::clicked, this, &CustomDockWidget::toggleWidgetVisibility);
     m_mainLayout->addWidget(SubjectButton1);
+    
 
     // 添加需要控制的Widget（示例）
     //QVBoxLayout* widgetLayout = new QVBoxLayout(InputWidget);
@@ -52,7 +53,7 @@ ControlDockWidget::ControlDockWidget(QWidget* parent, DialogCmd* cmd)
     m_NameToIdMap.insert({ "DrawLinesPushButton",TinyRender_LoadData_PushButton });
     m_NameToIdMap.insert({ "DrawTrianglePushButton",TinyRender_DrawTriangle_PushButton });
     m_NameToIdMap.insert({ "CNWCheckBox",TinyRender_LoadData_CheckBox });
-    m_NameToIdMap.insert({ "LoadDataPushButton",TinyRender_LoadData });
+    m_NameToIdMap.insert({ "Rotation",TinyRender_LoadData });
     m_NameToIdMap.insert({ "InputDataWidget",TinyRender_LoadData_Widget });
 }
 
@@ -71,3 +72,5 @@ ControlDockWidget::~ControlDockWidget()
     }
 
 }
+
+

@@ -118,7 +118,6 @@ RasterizationDevice::RasterizationDevice(const QSize& size) :m_ImageSize(size)
 
 	ImageBuffer.push_back(new QImage(size, QImage::Format_ARGB32));
 	ImageBuffer.push_back(new QImage(size, QImage::Format_ARGB32));
-	ImageBuffer.push_back(new QImage(size, QImage::Format_ARGB32));
 
 	for (int i = 0; i < 2; ++i) {
 		ImageBuffer[i]->fill(Qt::white);
@@ -142,7 +141,7 @@ RasterizationDevice::~RasterizationDevice()
 
 QImage* RasterizationDevice::GetImage()
 {
-	return ImageBuffer[0];
+	return ImageBuffer[1];
 }
 
 void RasterizationDevice::SetViewPortSize(const QSize& size)
@@ -153,7 +152,8 @@ void RasterizationDevice::SetViewPortSize(const QSize& size)
 
 void RasterizationDevice::StartRending()
 {
-	ImageBuffer[1]->fill(Qt::black);
+	ImageBuffer[1]->fill(Qt::gray);
+	std::fill(depth_buf.begin(), depth_buf.end(), 0.0f);
 }
 double doublemin(const double& a, const double& b) {
 	return a < b ? a : b;
@@ -432,7 +432,11 @@ void RasterizationDevice::SetImageSize(const QSize& size)
 {
 	if (size != m_ImageSize) {
 		m_ImageSize = size;
-	}	
+	}
+
+	for (int i = 0; i < 2; ++i) {
+		*ImageBuffer[i]=ImageBuffer[i]->scaled(size);
+	}
 	depth_buf.resize(m_ImageSize.width() * m_ImageSize.height());
 }
 void RasterizationDevice::SetTriangles(const std::vector<Triangle*>& triangles)
@@ -443,6 +447,11 @@ void RasterizationDevice::SetMVPTransformer(MVPTransformer* transformer)
 {
 	m_transformer = transformer;
 }
+static int count = 0;
+#include <chrono>
+#include <omp.h>
+//#include <tbb/parallel_for.h>
+//#include <tbb/concurrent_vector.h>
 void RasterizationDevice::Draw()
 {
 	float f1 = (50 - 0.1) / 2.0;
@@ -452,16 +461,27 @@ void RasterizationDevice::Draw()
 	auto view = m_transformer->get_view_matrix();
 	auto model = m_transformer->get_model_matrix();
 	Eigen::Matrix4f mvp = projection* view * model;
+	Eigen::Matrix4f mv = view * model;
+	StartRending();
+	std::vector<Triangle> newTriangles;
+	std::vector<std::array<Eigen::Vector3f, 3>> viewspacePosArray;
+	int ImageWidth = m_ImageSize.width();
+	int ImageHeight = m_ImageSize.height();
 
+//	tbb::concurrent_vector<Triangle> concurrentNewTriangles;
+//	tbb::concurrent_vector<std::array<Eigen::Vector3f, 3>> concurrentViewspacePosArray;
+
+	auto start = std::chrono::high_resolution_clock::now();
 	for (const auto& t : m_triangles)
 	{
 		Triangle newtri = *t;
 
 		std::array<Eigen::Vector4f, 3> mm{
-			  (view * model * t->v[0]),
-			  (view * model * t->v[1]),
-			  (view * model * t->v[2])
+			  (mv * t->v[0]),
+			  (mv * t->v[1]),
+			  (mv * t->v[2])
 		};
+		
 
 		std::array<Eigen::Vector3f, 3> viewspace_pos;
 
@@ -484,7 +504,7 @@ void RasterizationDevice::Draw()
 			vec.z() /= vec.w();
 		}
 
-		Eigen::Matrix4f inv_trans = (view * model).inverse().transpose();
+		Eigen::Matrix4f inv_trans = (mv).inverse().transpose();
 		Eigen::Vector4f n[] = {
 				inv_trans * to_vec4(t->normal[0], 0.0f),
 				inv_trans * to_vec4(t->normal[1], 0.0f),
@@ -494,8 +514,8 @@ void RasterizationDevice::Draw()
 		//Viewport transformation
 		for (auto& vert : v)
 		{
-			vert.x() = 0.5 *m_ImageSize.width() * (vert.x() + 1.0);
-			vert.y() = 0.5 * m_ImageSize.height() * (vert.y() + 1.0);
+			vert.x() = 0.5 *ImageWidth* (vert.x() + 1.0);
+			vert.y() = 0.5 * ImageHeight * (vert.y() + 1.0);
 			vert.z() = vert.z() * f1 + f2;
 		}
 
@@ -517,35 +537,42 @@ void RasterizationDevice::Draw()
 		newtri.setColor(2, 148, 121.0, 92.0);
 		
 		// Also pass view space vertice position
-		rasterize_triangle(newtri, viewspace_pos);
+			newTriangles.push_back(newtri);
+			viewspacePosArray.push_back(viewspace_pos);
+	//	concurrentNewTriangles.push_back(newtri);
+	//	concurrentViewspacePosArray.push_back(viewspace_pos);
+	//	rasterize_triangle(newtri, viewspace_pos);
 	}
-	//ImageBuffer[2]->save("testgames.png");
+	//newTriangles.assign(concurrentNewTriangles.begin(), concurrentNewTriangles.end());
+	//viewspacePosArray.assign(concurrentViewspacePosArray.begin(), concurrentViewspacePosArray.end());
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	
+	start = std::chrono::high_resolution_clock::now();
+	int count = newTriangles.size();
+	for (int i = 0; i < count; ++i)
+	{
+		rasterize_triangle(newTriangles[i],viewspacePosArray[i]);
+	}
+	end = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+	QString name = QString("testgames_%1").arg(count) + QString(".png");
+	//ImageBuffer[1]->save(name);
+	count += 1;
 	FinishRender();
 
 }
-//void RasterizationDevice::set_pixel(const double& point, const double& color)
-//{
-//	Vector2i point1;
-//	Eigen::Vector3f colo1r;
-//}
-void RasterizationDevice::testSave()
-{
-}
 void RasterizationDevice::set_pixel(const Eigen::Vector2i& point, const Eigen::Vector3f& color)
 {
-	ImageBuffer[1]->setPixelColor(point.x(), point.y()
+	int y = m_ImageSize.height()-point.y();
+	ImageBuffer[1]->setPixelColor(point.x(), y
 		,QColor(255.0*color[0], 255.0*color[1], 255.0*color[2]));
 
 }
 void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos)
 {
-	//每个三角形数据结构：
-//Vector4f v[3]; /*the original coordinates of the triangle, v0, v1, v2 in counter clockwise order*/
-//Vector3f color[3]; //color at each vertex;
-//Vector2f tex_coords[3]; //texture u,v
-//Vector3f normal[3]; //normal vector for each vertex
 
-//经过之前的处理后，传入三角形screen_space的坐标t.v以及viewspace的顶点坐标。
 	auto v = t.toVector4();
 	int xmin = 0;
 	int xmax = 0;
@@ -568,16 +595,6 @@ void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::arra
 	ymin = yminf;
 	ymax = ymaxf + 1;
 
-	// TODO: From your HW3, get the triangle rasterization code.
-	// TODO: Inside your rasterization loop:
-	//    * v[i].w() is the vertex view space depth value z.
-	//    * Z is interpolated view space depth for the current pixel
-	//    * zp is depth between zNear and zFar, used for z-buffer
-
-	// float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-	// float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-	// zp *= Z;
-
 	for (int i = xmin; i < xmax; i++)
 	{
 		for (int j = ymin; j < ymax; j++)
@@ -590,7 +607,7 @@ void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::arra
 				float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
 				float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
 				zp *= Z;
-
+				float temp = depth_buf[get_index(i, j)];
 				if (zp < depth_buf[get_index(i, j)])
 				{
 					depth_buf[get_index(i, j)] = zp;
@@ -605,8 +622,8 @@ void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::arra
 					set_pixel(Eigen::Vector2i(i, j),pixel_color);
 				}
 			}
-
 		}
+
 	}
 
 }

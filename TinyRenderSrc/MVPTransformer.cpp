@@ -4,10 +4,10 @@ MVPTransformer::MVPTransformer()
 {
     //====================ModelMatrix===========
     Eigen::Matrix4f rotation;
-    m_angle = m_angle * MY_PI / 180.f;
-    rotation << cos(m_angle), 0, sin(m_angle), 0,
+    float count_angle = m_angle* MY_PI / 180.f;
+    rotation << cos(count_angle), 0, sin(count_angle), 0,
         0, 1, 0, 0,
-        -sin(m_angle), 0, cos(m_angle), 0,
+        -sin(count_angle), 0, cos(count_angle), 0,
         0, 0, 0, 1;
 
 
@@ -127,14 +127,17 @@ void MVPTransformer::SetCameraMove(float angle, Eigen::Vector3f step)
 
 void MVPTransformer::SetModelArc(float angle, float scale)
 {
-    m_angle = angle;
+    m_angle += angle;
+    if (m_angle > 360) {
+        m_angle = 0;
+    }
     m_scalecoef =scale;
 
     Eigen::Matrix4f rotation;
-    m_angle = m_angle * MY_PI / 180.f;
-    rotation << cos(m_angle), 0, sin(m_angle), 0,
+    float count_angle = m_angle * MY_PI / 180.f;
+    rotation << cos(count_angle), 0, sin(count_angle), 0,
         0, 1, 0, 0,
-        -sin(m_angle), 0, cos(m_angle), 0,
+        -sin(count_angle), 0, cos(count_angle), 0,
         0, 0, 0, 1;
 
     Eigen::Matrix4f matrix_scale;

@@ -15,7 +15,7 @@ void AppDialog::BuildConnection()
 		QString objectName = child->objectName();
 		if (objectName.contains("PushButton")) {
 			QPushButton* btn = (QPushButton*)child;
-			connect(btn, SIGNAL(clicked()), this, SLOT(OnPushButtonClicked()));
+			connect(btn, &QPushButton::clicked, this,&AppDialog::OnPushButtonClicked);
 		}
 		else if (objectName.contains("CheckBox")) {
 			QCheckBox* box = (QCheckBox*)(child);
@@ -106,7 +106,7 @@ void AppDialog::OnCheckBoxStateChanged(int)
 void AppDialog::OnPushButtonClicked()
 {
 	QString name = sender()->objectName();
-	//	m_cmd->Activate(GetControl(name));
+	m_cmd->Activate(GetControl(name));
 }
 
 DialogCmd::DialogCmd()
