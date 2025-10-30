@@ -8,16 +8,12 @@ class Vertex;
 class RasterizationDevice;
 class Triangle;
 class MVPTransformer;
+class TextureImage;
 class DrawAreaWidget :public QWidget
 {
 public:
 	DrawAreaWidget(QWidget* parent);
 	~DrawAreaWidget();
-
-	void OpenModelFile(const QString& filePath="test");
-	void SetTtriangle(std::vector<Triangle*> triangleList);
-	void SetMVPTransformer(MVPTransformer* transformer);
-	void Draw();
 
 	void SetModeArc(const float& angle, const float& scale);
 private:
@@ -34,9 +30,8 @@ private:
 	QImage* m_showImage = nullptr;
 	Model* m_model=nullptr;
 	RasterizationDevice* m_device=nullptr;
-    std::vector<Vertex> mvp_perspective_vertex;
 	QTimer m_timer;
 	std::vector<Triangle*> TriangleList;
 	MVPTransformer* mvptransformer=nullptr;
-	float m_testangle = 0;
+	TextureImage* m_textureImage = nullptr;
 };

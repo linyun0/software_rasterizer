@@ -26,7 +26,7 @@ message(${SOURCE_DIR})
 message(${Qt5_DIR})
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/Dependence/eigen3)
-add_executable(MyTinyRender ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS} "TinyRenderSrc/Triangle.h" "TinyRenderSrc/Triangle.cpp" "TinyRenderSrc/MVPTransformer.h" "TinyRenderSrc/Shader.h")
+add_executable(${PROJECT_NAME} ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS} "TinyRenderSrc/Triangle.h" "TinyRenderSrc/Triangle.cpp" "TinyRenderSrc/MVPTransformer.h" "TinyRenderSrc/Shader.h")
 find_package(glm CONFIG REQUIRED)
 
 

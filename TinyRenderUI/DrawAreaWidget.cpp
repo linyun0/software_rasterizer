@@ -4,25 +4,15 @@
 #include "../TinyRenderSrc/Triangle.h"
 #include "../TinyRenderSrc/MVPTransformer.h"
 #include "../TinyRenderSrc/RasterizationDevice.h"
+#include "../TinyRenderSrc/Texture.h"
 #include <qpainter.h>
 #include <QApplication>
 DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 
-	m_camera = new Camera;
-	glm::vec3 eye{ 0,0,8 };
-	glm::vec3  center{ 0,0,-2 }; // camera direction
-	glm::vec3  up{ 0,-1,0 }; // camera direction
-	float eye_fov = 10.0; float aspect_ratio = 1.0; float zNear = 0.1; float zFar = 50.0;
-
-	m_camera->SetCamera(eye, center, up);
-	m_camera->SetViewFrustum(eye_fov,aspect_ratio,zNear,zFar); 
-
 
 	m_model = new Model();
-	OpenModelFile();
 	
 	mvptransformer = new MVPTransformer();
-//	mvptransformer->SetModelArc(60, 2);
 	for (auto mesh : m_model->meshes) {
 		for (int i = 0; i < mesh.m_vertices.size(); i+=3) {
 			Triangle* t = new Triangle();
@@ -43,12 +33,10 @@ DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 	m_showImage = m_device->GetImage();
 	m_device->SetTriangles(TriangleList);
 	m_device->SetMVPTransformer(mvptransformer);
-	//m_device->Draw();
-//	m_device->RenderPointsImage(mvp_perspective_vertex,QColor(255,0,0));
-//	m_device->RenderWireFrameImage(mvp_perspective_vertex,QColor(255,0,0));
-	
-//	m_device->RenderImage(mvp_perspective_vertex); 
-	
+
+
+	m_textureImage = new TextureImage("D:/spot_texture.png");
+	m_device->SetTextureImage(m_textureImage);
 	//connect(&m_timer, &QTimer::timeout, this,[=](){
 	//	m_testangle += 30;
 	//	if (m_testangle > 360) {
@@ -62,7 +50,6 @@ DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 }
 
 void DrawAreaWidget::Render() {
-	//m_device->RenderImage(mvp_perspective_vertex);
 	m_device->Draw();
 }
 
@@ -79,90 +66,11 @@ DrawAreaWidget::~DrawAreaWidget()
 	if (m_camera) delete m_camera;
 	if (m_model) delete m_model;
 }
-glm::mat4x4  ry180 = { {-1, 0, 0, 0},
-					{0, -1, 0, 0 },
-					{ 0, 0,1, 0},
-					{0, 0, 0, 1
-} };
-
-void print(glm::mat4x4 matrix)
-{
-	for (int i = 0; i < 4; ++i) {
-		std::cout << matrix[i].x << " " << matrix[i].y << " " << matrix[i].z << " " << matrix[i].w << std::endl;
-	}
-	std::cout<<std::endl;
-}
-void DrawAreaWidget::OpenModelFile(const QString& filePath)
-{
-	if (filePath == "test") {
-		auto lookAtMatrix = m_camera->GetLookAtMatrix();
-		auto perspectiveMatrix = m_camera->GetPerspectiveMatrix();
-		int meshSize = m_model->meshes.size();
-		auto mvp = lookAtMatrix * perspectiveMatrix;
-		auto mv = lookAtMatrix;
-		for (int i = 0; i < meshSize; ++i) {
-			std::vector<Vertex> vertices = m_model->meshes[i].m_vertices;
-			int vertice_size = vertices.size();
-			for (int j = 0; j < vertice_size; ++j)
-			{
-				Vertex temp;
-				//glm::vec4 pos{ vertices[j].Position.x,vertices[j].Posi//tion.y,vertices[j].Position.z,1 };
-				glm::vec4 pos(vertices[j].Position, 1.0f);
-				//auto testpoint = lookAtMatrix * pos;
-				auto mvpoint = pos *mv;
-				//glm::vec4 mvpPos = perspectiveMatrix * lookAtMatrix * pos;
-				glm::mat4x4 unit = {
-					{1,0,0,0},
-					{0,1,0,0},
-					{0,0,1,0},
-					{0,0,0,1},
-				};
-				//print(perspectiveMatrix);
-				//print(lookAtMatrix);
-				//print(mvp);
-				glm::vec4 mvpPos = pos*mvp ;
-				double w = mvpPos.w;
-				mvpPos = mvpPos / (float)w;
-				temp.mvPosition = mvpoint;
-				temp.Position = vertices[j].Position;
-				//temp.mvpPosition=glm::vec3{mvpPos.x,mvpPos.y,mvpPos.z};
-				temp.mvpPosition=glm::vec3(mvpPos);
-				temp.mvpPosition.x = temp.mvpPosition.x;
-				temp.mvpPosition.y = temp.mvpPosition.y;
-				temp.mvpPosition.z = temp.mvpPosition.z;
-				glm::vec4 tempnormal{ vertices[j].Normal,1.0f };
-				tempnormal = tempnormal * lookAtMatrix;
-				temp.mvNormal = tempnormal;
-				temp.Normal = vertices[j].Normal;
-				temp.TexCoords = vertices[j].TexCoords;
-				
-				mvp_perspective_vertex.push_back(temp);
-			}
-		}
 
 
-
-
-	}
-	else {
-
-	}
-}
-
-void DrawAreaWidget::SetTtriangle(std::vector<Triangle*> triangleList)
-{
-	TriangleList = triangleList;
-}
-void DrawAreaWidget::SetMVPTransformer(MVPTransformer* transformer)
-{
-	mvptransformer = transformer;
-}
-void DrawAreaWidget::Draw()
-{
 	
 
 
-}
 void DrawAreaWidget::SetModeArc(const float& angle, const float& scale)
 {
 	mvptransformer->SetModelArc(angle, scale);
@@ -191,7 +99,6 @@ void DrawAreaWidget::resizeEvent(QResizeEvent* event)
 
 void DrawAreaWidget::paintEvent(QPaintEvent* event)
 {
-
 	QPainter painter(this);
 	painter.drawImage(0, 0, *m_showImage);
 	QWidget::paintEvent(event);
