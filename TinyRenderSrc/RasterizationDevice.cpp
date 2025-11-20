@@ -326,17 +326,17 @@ void RasterizationDevice::Draw()
 	}
 	//newTriangles.assign(concurrentNewTriangles.begin(), concurrentNewTriangles.end());
 	//viewspacePosArray.assign(concurrentViewspacePosArray.begin(), concurrentViewspacePosArray.end());
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	//auto end = std::chrono::high_resolution_clock::now();
+	//auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	
-	start = std::chrono::high_resolution_clock::now();
+//	start = std::chrono::high_resolution_clock::now();
 	int count = newTriangles.size();
 	for (int i = 0; i < count; ++i)
 	{
 		rasterize_triangle(newTriangles[i],viewspacePosArray[i]);
 	}
-	end = std::chrono::high_resolution_clock::now();
-	duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
 	QString name = QString("testgames_%1").arg(count) + QString(".png");
 	//ImageBuffer[1]->save(name);

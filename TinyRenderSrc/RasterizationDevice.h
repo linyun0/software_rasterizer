@@ -41,7 +41,6 @@ private:
 	std::vector<QImage*> ImageBuffer;
 	QSize m_ImageSize;
 	std::vector<Triangle*> m_triangles;
-	std::mutex mtx;
 	MVPTransformer* m_transformer=nullptr;
 	std::vector<float> depth_buf;
 	TextureImage* m_textureImage = nullptr;
