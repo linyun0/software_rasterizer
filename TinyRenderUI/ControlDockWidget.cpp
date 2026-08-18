@@ -8,7 +8,7 @@ ControlDockWidget::ControlDockWidget(QWidget* parent, DialogCmd* cmd)
 {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(0);
-    mainLayout->setMargin(0);
+   // mainLayout->setMargin(0);
     // 创建滚动区域并设置为主部件
     m_scrollArea = new QScrollArea(this);
     m_scrollArea->setWidgetResizable(true); // 允许内容扩展
@@ -21,7 +21,7 @@ ControlDockWidget::ControlDockWidget(QWidget* parent, DialogCmd* cmd)
     // 主垂直布局
     QVBoxLayout* m_mainLayout = new QVBoxLayout(m_container);
     m_mainLayout->setAlignment(Qt::AlignTop);
-    m_mainLayout->setMargin(0);
+  //  m_mainLayout->setMargin(0);
     m_mainLayout->setSpacing(0);
 
     QPushButton* SubjectButton1 = new QPushButton(("Rotation"), m_container);
