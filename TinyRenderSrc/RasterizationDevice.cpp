@@ -7,7 +7,6 @@
 #include <limits>
 #include "Shader.h"
 #include "Texture.h"
-#include "context/context.h"
 //TGAColor sample2D(const TGAImage& img, const vec2& uvf) {
 //	return img.get(uvf[0] * img.width(), uvf[1] * img.height());
 //}
@@ -179,11 +178,6 @@ RasterizationDevice::RasterizationDevice(const QSize& size) :m_ImageSize(size)
 
 	depth_buf.resize(m_ImageSize.width() * m_ImageSize.height());
 
-	int numThreads = std::max(1u, std::thread::hardware_concurrency());
-	m_runnerTags.clear();
-	for (int i = 0; i < numThreads; ++i) {
-		m_runnerTags.push_back(NEW_TASK_RUNNER(0));
-	}
 }
 
 RasterizationDevice::~RasterizationDevice()
@@ -237,8 +231,7 @@ void RasterizationDevice::SetMVPTransformer(MVPTransformer* transformer)
 	m_transformer = transformer;
 }
 
-void RasterizationDevice::transformAllTriangles(std::vector<Triangle>& outTris,
-	std::vector<std::array<Eigen::Vector3f, 3>>& outViewPos)
+void RasterizationDevice::Draw()
 {
 	float f1 = (50 - 0.1f) / 2.0f;
 	float f2 = (50 + 0.1f) / 2.0f;
@@ -252,143 +245,67 @@ void RasterizationDevice::transformAllTriangles(std::vector<Triangle>& outTris,
 
 	int ImageWidth = m_ImageSize.width();
 	int ImageHeight = m_ImageSize.height();
-	int n = (int)m_triangles.size();
 
-	outTris.resize(n);
-	outViewPos.resize(n);
-
-	std::atomic<int> nextTri{ 0 };
-	for (auto tag : m_runnerTags) {
-		EXECUTOR->PostTask(tag, [&]() {
-			while (true) {
-				int idx = nextTri.fetch_add(1);
-				if (idx >= n) break;
-				const Triangle* tri = m_triangles[idx];
-				Triangle newtri = *tri;
-
-				std::array<Eigen::Vector4f, 3> mm{
-					(mv * tri->v[0]),
-					(mv * tri->v[1]),
-					(mv * tri->v[2])
-				};
-				std::array<Eigen::Vector3f, 3> viewspace_pos;
-				std::transform(mm.begin(), mm.end(), viewspace_pos.begin(),
-					[](auto& v) {return v.template head<3>(); });
-
-				Eigen::Vector4f v[] = {
-					mvp * tri->v[0],
-					mvp * tri->v[1],
-					mvp * tri->v[2]
-				};
-				// Homogeneous division
-				for (auto& vec : v) {
-					vec.x() /= vec.w();
-					vec.y() /= vec.w();
-					vec.z() /= vec.w();
-				}
-
-				Eigen::Vector4f n[] = {
-					inv_trans * to_vec4(tri->normal[0], 0.0f),
-					inv_trans * to_vec4(tri->normal[1], 0.0f),
-					inv_trans * to_vec4(tri->normal[2], 0.0f)
-				};
-
-				// Viewport transformation
-				for (auto& vert : v) {
-					vert.x() = 0.5f * ImageWidth * (vert.x() + 1.0f);
-					vert.y() = 0.5f * ImageHeight * (vert.y() + 1.0f);
-					vert.z() = vert.z() * f1 + f2;
-				}
-
-				for (int i = 0; i < 3; ++i)
-					newtri.setVertex(i, v[i]);
-				for (int i = 0; i < 3; ++i)
-					newtri.setNormal(i, n[i].head<3>());
-
-				newtri.setColor(0, 148, 121.0, 92.0);
-				newtri.setColor(1, 148, 121.0, 92.0);
-				newtri.setColor(2, 148, 121.0, 92.0);
-
-				outTris[idx] = newtri;
-				outViewPos[idx] = viewspace_pos;
-			}
-		});
-	}
-	for (auto tag : m_runnerTags) {
-		WAIT_TASK_IDLE(tag);
-	}
-}
-
-void RasterizationDevice::buildBands(const std::vector<Triangle>& tris, std::vector<TileBand>& bands)
-{
-	int height = m_ImageSize.height();
-	int numThreads = (int)m_runnerTags.size();
-	int numBands = std::max(1, numThreads * 2);
-	numBands = std::min(numBands, height);
-
-	bands.clear();
-	bands.resize(numBands);
-
-	int bandHeight = height / numBands;
-	int remainder = height % numBands;
-	int y = 0;
-	for (int b = 0; b < numBands; ++b) {
-		bands[b].yStart = y;
-		int h = bandHeight + (b < remainder ? 1 : 0);
-		bands[b].yEnd = y + h;
-		y = bands[b].yEnd;
-	}
-
-	for (int i = 0; i < (int)tris.size(); ++i) {
-		float yminf = tris[i].v[0].y();
-		float ymaxf = tris[i].v[0].y();
-		for (int k = 1; k < 3; ++k) {
-			yminf = std::min(yminf, tris[i].v[k].y());
-			ymaxf = std::max(ymaxf, tris[i].v[k].y());
-		}
-		int ymin = (int)yminf;
-		int ymax = (int)ymaxf + 1;
-
-		for (int b = 0; b < numBands; ++b) {
-			if (bands[b].yEnd <= ymin || bands[b].yStart >= ymax) continue;
-			bands[b].triangleIndices.push_back(i);
-		}
-	}
-}
-
-void RasterizationDevice::rasterizeBand(int bandIdx, const std::vector<TileBand>& bands,
-	const std::vector<Triangle>& tris,
-	const std::vector<std::array<Eigen::Vector3f, 3>>& viewPos)
-{
-	const TileBand& band = bands[bandIdx];
-	for (int idx : band.triangleIndices) {
-		rasterize_triangle(tris[idx], viewPos[idx], band.yStart, band.yEnd);
-	}
-}
-
-void RasterizationDevice::Draw()
-{
 	StartRending();
-
 	std::vector<Triangle> newTriangles;
 	std::vector<std::array<Eigen::Vector3f, 3>> viewspacePosArray;
-	transformAllTriangles(newTriangles, viewspacePosArray);
 
-	std::vector<TileBand> bands;
-	buildBands(newTriangles, bands);
+	for (const auto& t : m_triangles)
+	{
+		Triangle newtri = *t;
 
-	std::atomic<int> nextBand{ 0 };
-	for (auto tag : m_runnerTags) {
-		EXECUTOR->PostTask(tag, [&]() {
-			while (true) {
-				int b = nextBand.fetch_add(1);
-				if (b >= (int)bands.size()) break;
-				rasterizeBand(b, bands, newTriangles, viewspacePosArray);
-			}
-		});
+		std::array<Eigen::Vector4f, 3> mm{
+			(mv * t->v[0]),
+			(mv * t->v[1]),
+			(mv * t->v[2])
+		};
+
+		std::array<Eigen::Vector3f, 3> viewspace_pos;
+		std::transform(mm.begin(), mm.end(), viewspace_pos.begin(),
+			[](auto& v) {return v.template head<3>(); });
+
+		Eigen::Vector4f v[] = {
+			mvp * t->v[0],
+			mvp * t->v[1],
+			mvp * t->v[2]
+		};
+		// Homogeneous division
+		for (auto& vec : v) {
+			vec.x() /= vec.w();
+			vec.y() /= vec.w();
+			vec.z() /= vec.w();
+		}
+
+		Eigen::Vector4f n[] = {
+			inv_trans * to_vec4(t->normal[0], 0.0f),
+			inv_trans * to_vec4(t->normal[1], 0.0f),
+			inv_trans * to_vec4(t->normal[2], 0.0f)
+		};
+
+		// Viewport transformation
+		for (auto& vert : v) {
+			vert.x() = 0.5f * ImageWidth * (vert.x() + 1.0f);
+			vert.y() = 0.5f * ImageHeight * (vert.y() + 1.0f);
+			vert.z() = vert.z() * f1 + f2;
+		}
+
+		for (int i = 0; i < 3; ++i)
+			newtri.setVertex(i, v[i]);
+
+		for (int i = 0; i < 3; ++i)
+			newtri.setNormal(i, n[i].head<3>());
+
+		newtri.setColor(0, 148, 121.0, 92.0);
+		newtri.setColor(1, 148, 121.0, 92.0);
+		newtri.setColor(2, 148, 121.0, 92.0);
+
+		newTriangles.push_back(newtri);
+		viewspacePosArray.push_back(viewspace_pos);
 	}
-	for (auto tag : m_runnerTags) {
-		WAIT_TASK_IDLE(tag);
+
+	for (int i = 0; i < (int)newTriangles.size(); ++i)
+	{
+		rasterize_triangle(newTriangles[i], viewspacePosArray[i]);
 	}
 
 	FinishRender();
@@ -412,7 +329,7 @@ void RasterizationDevice::set_pixel(const Eigen::Vector2i& point, const Eigen::V
 	QRgb* line = reinterpret_cast<QRgb*>(ImageBuffer[1]->scanLine(y));
 	line[x] = qRgb(r, g, b);
 }
-void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos,int yStart, int yEnd)
+void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos)
 {
 
 	auto v = t.toVector4();
@@ -437,12 +354,9 @@ void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::arra
 	ymin = yminf;
 	ymax = ymaxf + 1;
 
-	// 裁剪到本条带负责的行范围 [yStart, yEnd)
-	int y0 = std::max(ymin, yStart);
-	int y1 = std::min(ymax, yEnd);
 	for (int i = xmin; i < xmax; i++)
 	{
-		for (int j = y0; j < y1; j++)
+		for (int j = ymin; j < ymax; j++)
 		{
 			if (insideTriangle(i + 0.5, j + 0.5, t.v))
 			{
