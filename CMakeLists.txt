@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED 17)
 
 set(glm_DIR Dependence/glm/share/glm)
 set(Eigen3_DIR ${PROJECT_SOURCE_DIR}/Dependence/eigen3)
-set(TBB_DIR D:/Dependence/TBBmy_installed_onetbb/lib/cmake/TBB)
+
 
 find_package(Eigen3 REQUIRED)
 file(GLOB  UI_FILES ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.ui)
@@ -22,8 +22,11 @@ message(STATUS "生成器: ${CMAKE_GENERATOR}")
 file(GLOB SOURCE_DIR ${PROJECT_SOURCE_DIR}/*.cpp ${PROJECT_SOURCE_DIR}/*.h
 					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/*.cpp  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/*.h  
+					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/context/*.cc  
+					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/context/*.h  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.h  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.cpp  
+
 )
 message(${SOURCE_DIR})
 message("PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR})
@@ -31,7 +34,7 @@ message("PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR})
 #add_subdirectory(${PROJECT_SOURCE_DIR}/Dependence/eigen3)
 add_executable(${PROJECT_NAME} ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS} "TinyRenderSrc/Triangle.h" "TinyRenderSrc/Triangle.cpp" "TinyRenderSrc/MVPTransformer.h" "TinyRenderSrc/Shader.h")
 find_package(glm CONFIG REQUIRED)
-find_package(TBB CONFIG REQUIRED)
+
 
 
 
@@ -41,9 +44,9 @@ target_link_libraries(${PROJECT_NAME}  PRIVATE
 "D:/Download/lib/assimp-vc143-mt.lib"
 Qt6::Core
 Qt6::Widgets
-Qt6::Gui  # 显式
+Qt6::Gui  # 显式 
 Qt6::OpenGLWidgets   
 glm::glm
 Eigen3::Eigen
 )
-target_link_libraries(${PROJECT_NAME} PUBLIC TBB::tbb)
+

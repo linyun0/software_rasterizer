@@ -3,8 +3,11 @@
 #include "Triangle.h"
 #include "MVPTransformer.h"
 #include <array>
+#include <algorithm>
+#include <limits>
 #include "Shader.h"
 #include "Texture.h"
+#include "context/context.h"
 //TGAColor sample2D(const TGAImage& img, const vec2& uvf) {
 //	return img.get(uvf[0] * img.width(), uvf[1] * img.height());
 //}
@@ -176,6 +179,11 @@ RasterizationDevice::RasterizationDevice(const QSize& size) :m_ImageSize(size)
 
 	depth_buf.resize(m_ImageSize.width() * m_ImageSize.height());
 
+	int numThreads = std::max(1u, std::thread::hardware_concurrency());
+	m_runnerTags.clear();
+	for (int i = 0; i < numThreads; ++i) {
+		m_runnerTags.push_back(NEW_TASK_RUNNER(0));
+	}
 }
 
 RasterizationDevice::~RasterizationDevice()
@@ -201,7 +209,7 @@ void RasterizationDevice::SetViewPortSize(const QSize& size)
 void RasterizationDevice::StartRending()
 {
 	ImageBuffer[1]->fill(Qt::gray);
-	std::fill(depth_buf.begin(), depth_buf.end(), 0.0f);
+	std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::max());
 }
 
 
@@ -228,122 +236,164 @@ void RasterizationDevice::SetMVPTransformer(MVPTransformer* transformer)
 {
 	m_transformer = transformer;
 }
-static int count = 0;
-#include <chrono>
-#include <omp.h>
-//#include <tbb/parallel_for.h>
-//#include <tbb/concurrent_vector.h>
-void RasterizationDevice::Draw()
+
+void RasterizationDevice::transformAllTriangles(std::vector<Triangle>& outTris,
+	std::vector<std::array<Eigen::Vector3f, 3>>& outViewPos)
 {
-	float f1 = (50 - 0.1) / 2.0;
-	float f2 = (50 + 0.1) / 2.0;
-		
+	float f1 = (50 - 0.1f) / 2.0f;
+	float f2 = (50 + 0.1f) / 2.0f;
+
 	auto projection = m_transformer->get_projection_matrix();
 	auto view = m_transformer->get_view_matrix();
 	auto model = m_transformer->get_model_matrix();
-	Eigen::Matrix4f mvp = projection* view * model;
+	Eigen::Matrix4f mvp = projection * view * model;
 	Eigen::Matrix4f mv = view * model;
-	StartRending();
-	std::vector<Triangle> newTriangles;
-	std::vector<std::array<Eigen::Vector3f, 3>> viewspacePosArray;
+	Eigen::Matrix4f inv_trans = (mv).inverse().transpose();
+
 	int ImageWidth = m_ImageSize.width();
 	int ImageHeight = m_ImageSize.height();
+	int n = (int)m_triangles.size();
 
-//	tbb::concurrent_vector<Triangle> concurrentNewTriangles;
-//	tbb::concurrent_vector<std::array<Eigen::Vector3f, 3>> concurrentViewspacePosArray;
+	outTris.resize(n);
+	outViewPos.resize(n);
 
-	auto start = std::chrono::high_resolution_clock::now();
-	for (const auto& t : m_triangles)
-	{
-		Triangle newtri = *t;
+	std::atomic<int> nextTri{ 0 };
+	for (auto tag : m_runnerTags) {
+		EXECUTOR->PostTask(tag, [&]() {
+			while (true) {
+				int idx = nextTri.fetch_add(1);
+				if (idx >= n) break;
+				const Triangle* tri = m_triangles[idx];
+				Triangle newtri = *tri;
 
-		std::array<Eigen::Vector4f, 3> mm{
-			  (mv * t->v[0]),
-			  (mv * t->v[1]),
-			  (mv * t->v[2])
-		};
-		
+				std::array<Eigen::Vector4f, 3> mm{
+					(mv * tri->v[0]),
+					(mv * tri->v[1]),
+					(mv * tri->v[2])
+				};
+				std::array<Eigen::Vector3f, 3> viewspace_pos;
+				std::transform(mm.begin(), mm.end(), viewspace_pos.begin(),
+					[](auto& v) {return v.template head<3>(); });
 
-		std::array<Eigen::Vector3f, 3> viewspace_pos;
+				Eigen::Vector4f v[] = {
+					mvp * tri->v[0],
+					mvp * tri->v[1],
+					mvp * tri->v[2]
+				};
+				// Homogeneous division
+				for (auto& vec : v) {
+					vec.x() /= vec.w();
+					vec.y() /= vec.w();
+					vec.z() /= vec.w();
+				}
 
-		std::transform(
-			mm.begin(),
-			mm.end(),
-			viewspace_pos.begin(),
-			[](auto& v) {return v.template head<3>(); }
-		);
+				Eigen::Vector4f n[] = {
+					inv_trans * to_vec4(tri->normal[0], 0.0f),
+					inv_trans * to_vec4(tri->normal[1], 0.0f),
+					inv_trans * to_vec4(tri->normal[2], 0.0f)
+				};
 
-		Eigen::Vector4f v[] = {
-				mvp * t->v[0],
-				mvp * t->v[1],
-				mvp * t->v[2]
-		};
-		//Homogeneous division
-		for (auto& vec : v) {
-			vec.x() /= vec.w();
-			vec.y() /= vec.w();
-			vec.z() /= vec.w();
-		}
+				// Viewport transformation
+				for (auto& vert : v) {
+					vert.x() = 0.5f * ImageWidth * (vert.x() + 1.0f);
+					vert.y() = 0.5f * ImageHeight * (vert.y() + 1.0f);
+					vert.z() = vert.z() * f1 + f2;
+				}
 
-		Eigen::Matrix4f inv_trans = (mv).inverse().transpose();
-		Eigen::Vector4f n[] = {
-				inv_trans * to_vec4(t->normal[0], 0.0f),
-				inv_trans * to_vec4(t->normal[1], 0.0f),
-				inv_trans * to_vec4(t->normal[2], 0.0f)
-		};
+				for (int i = 0; i < 3; ++i)
+					newtri.setVertex(i, v[i]);
+				for (int i = 0; i < 3; ++i)
+					newtri.setNormal(i, n[i].head<3>());
 
-		//Viewport transformation
-		for (auto& vert : v)
-		{
-			vert.x() = 0.5 *ImageWidth* (vert.x() + 1.0);
-			vert.y() = 0.5 * ImageHeight * (vert.y() + 1.0);
-			vert.z() = vert.z() * f1 + f2;
-		}
+				newtri.setColor(0, 148, 121.0, 92.0);
+				newtri.setColor(1, 148, 121.0, 92.0);
+				newtri.setColor(2, 148, 121.0, 92.0);
 
-		for (int i = 0; i < 3; ++i)
-		{
-			//screen space coordinates
-			newtri.setVertex(i, v[i]);
-		}
-
-		for (int i = 0; i < 3; ++i)
-		{
-			//view space normal
-			//std::cout<<i<<':'<<n[i].head<3>()<<'\n';
-			newtri.setNormal(i, n[i].head<3>());
-		}
-
-		newtri.setColor(0, 148, 121.0, 92.0);
-		newtri.setColor(1, 148, 121.0, 92.0);
-		newtri.setColor(2, 148, 121.0, 92.0);
-		
-		// Also pass view space vertice position
-			newTriangles.push_back(newtri);
-			viewspacePosArray.push_back(viewspace_pos);
-	//	concurrentNewTriangles.push_back(newtri);
-	//	concurrentViewspacePosArray.push_back(viewspace_pos);
-	//	rasterize_triangle(newtri, viewspace_pos);
+				outTris[idx] = newtri;
+				outViewPos[idx] = viewspace_pos;
+			}
+		});
 	}
-	//newTriangles.assign(concurrentNewTriangles.begin(), concurrentNewTriangles.end());
-	//viewspacePosArray.assign(concurrentViewspacePosArray.begin(), concurrentViewspacePosArray.end());
-	//auto end = std::chrono::high_resolution_clock::now();
-	//auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-	
-//	start = std::chrono::high_resolution_clock::now();
-	int count = newTriangles.size();
-	for (int i = 0; i < count; ++i)
-	{
-		rasterize_triangle(newTriangles[i],viewspacePosArray[i]);
+	for (auto tag : m_runnerTags) {
+		WAIT_TASK_IDLE(tag);
 	}
-	auto end = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-	QString name = QString("testgames_%1").arg(count) + QString(".png");
-	//ImageBuffer[1]->save(name);
-	count += 1;
-	FinishRender();
-
 }
+
+void RasterizationDevice::buildBands(const std::vector<Triangle>& tris, std::vector<TileBand>& bands)
+{
+	int height = m_ImageSize.height();
+	int numThreads = (int)m_runnerTags.size();
+	int numBands = std::max(1, numThreads * 2);
+	numBands = std::min(numBands, height);
+
+	bands.clear();
+	bands.resize(numBands);
+
+	int bandHeight = height / numBands;
+	int remainder = height % numBands;
+	int y = 0;
+	for (int b = 0; b < numBands; ++b) {
+		bands[b].yStart = y;
+		int h = bandHeight + (b < remainder ? 1 : 0);
+		bands[b].yEnd = y + h;
+		y = bands[b].yEnd;
+	}
+
+	for (int i = 0; i < (int)tris.size(); ++i) {
+		float yminf = tris[i].v[0].y();
+		float ymaxf = tris[i].v[0].y();
+		for (int k = 1; k < 3; ++k) {
+			yminf = std::min(yminf, tris[i].v[k].y());
+			ymaxf = std::max(ymaxf, tris[i].v[k].y());
+		}
+		int ymin = (int)yminf;
+		int ymax = (int)ymaxf + 1;
+
+		for (int b = 0; b < numBands; ++b) {
+			if (bands[b].yEnd <= ymin || bands[b].yStart >= ymax) continue;
+			bands[b].triangleIndices.push_back(i);
+		}
+	}
+}
+
+void RasterizationDevice::rasterizeBand(int bandIdx, const std::vector<TileBand>& bands,
+	const std::vector<Triangle>& tris,
+	const std::vector<std::array<Eigen::Vector3f, 3>>& viewPos)
+{
+	const TileBand& band = bands[bandIdx];
+	for (int idx : band.triangleIndices) {
+		rasterize_triangle(tris[idx], viewPos[idx], band.yStart, band.yEnd);
+	}
+}
+
+void RasterizationDevice::Draw()
+{
+	StartRending();
+
+	std::vector<Triangle> newTriangles;
+	std::vector<std::array<Eigen::Vector3f, 3>> viewspacePosArray;
+	transformAllTriangles(newTriangles, viewspacePosArray);
+
+	std::vector<TileBand> bands;
+	buildBands(newTriangles, bands);
+
+	std::atomic<int> nextBand{ 0 };
+	for (auto tag : m_runnerTags) {
+		EXECUTOR->PostTask(tag, [&]() {
+			while (true) {
+				int b = nextBand.fetch_add(1);
+				if (b >= (int)bands.size()) break;
+				rasterizeBand(b, bands, newTriangles, viewspacePosArray);
+			}
+		});
+	}
+	for (auto tag : m_runnerTags) {
+		WAIT_TASK_IDLE(tag);
+	}
+
+	FinishRender();
+}
+
 void RasterizationDevice::SetTextureImage(TextureImage* textureImage)
 {
 	m_textureImage = textureImage;
@@ -351,11 +401,18 @@ void RasterizationDevice::SetTextureImage(TextureImage* textureImage)
 void RasterizationDevice::set_pixel(const Eigen::Vector2i& point, const Eigen::Vector3f& color)
 {
 	int y = m_ImageSize.height()-point.y();
-	ImageBuffer[1]->setPixelColor(point.x(), y
-		,QColor(255.0*color[0], 255.0*color[1], 255.0*color[2]));
+	int x = point.x();
+	if (x < 0 || x >= m_ImageSize.width() || y < 0 || y >= m_ImageSize.height())
+		return;
 
+	int r = std::clamp((int)(255.0f * color[0]), 0, 255);
+	int g = std::clamp((int)(255.0f * color[1]), 0, 255);
+	int b = std::clamp((int)(255.0f * color[2]), 0, 255);
+
+	QRgb* line = reinterpret_cast<QRgb*>(ImageBuffer[1]->scanLine(y));
+	line[x] = qRgb(r, g, b);
 }
-void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos)
+void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos,int yStart, int yEnd)
 {
 
 	auto v = t.toVector4();
@@ -380,9 +437,12 @@ void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::arra
 	ymin = yminf;
 	ymax = ymaxf + 1;
 
+	// 裁剪到本条带负责的行范围 [yStart, yEnd)
+	int y0 = std::max(ymin, yStart);
+	int y1 = std::min(ymax, yEnd);
 	for (int i = xmin; i < xmax; i++)
 	{
-		for (int j = ymin; j < ymax; j++)
+		for (int j = y0; j < y1; j++)
 		{
 			if (insideTriangle(i + 0.5, j + 0.5, t.v))
 			{
