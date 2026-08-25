@@ -1,6 +1,6 @@
 #include "RasterizationDevice.h"
 #include <QPainter>
-#include "Triangle.h"
+
 #include "MVPTransformer.h"
 #include <array>
 #include <algorithm>
@@ -178,6 +178,8 @@ RasterizationDevice::RasterizationDevice(const QSize& size) :m_ImageSize(size)
 
 	depth_buf.resize(m_ImageSize.width() * m_ImageSize.height());
 
+	m_threadpool = std::make_unique<ThreadPool>(std::thread::hardware_concurrency());
+	m_threadpool->Start();
 }
 
 RasterizationDevice::~RasterizationDevice()
@@ -247,11 +249,15 @@ void RasterizationDevice::Draw()
 	int ImageHeight = m_ImageSize.height();
 
 	StartRending();
-	std::vector<Triangle> newTriangles;
-	std::vector<std::array<Eigen::Vector3f, 3>> viewspacePosArray;
 
-	for (const auto& t : m_triangles)
+	auto now = std::chrono::high_resolution_clock().now();
+
+	int m_triangles_size = m_triangles.size();
+	std::vector<TriWithAABB> triwithAABB(m_triangles_size, {});
+
+	for (int i = 0;i < m_triangles_size;++i)
 	{
+		auto t = m_triangles[i];
 		Triangle newtri = *t;
 
 		std::array<Eigen::Vector4f, 3> mm{
@@ -299,16 +305,97 @@ void RasterizationDevice::Draw()
 		newtri.setColor(1, 148, 121.0, 92.0);
 		newtri.setColor(2, 148, 121.0, 92.0);
 
-		newTriangles.push_back(newtri);
-		viewspacePosArray.push_back(viewspace_pos);
-	}
 
-	for (int i = 0; i < (int)newTriangles.size(); ++i)
+
+		float yminf = std::min({ newtri.v[0].y(), newtri.v[1].y(), newtri.v[2].y() });
+		float ymaxf = std::max({ newtri.v[0].y(), newtri.v[1].y(), newtri.v[2].y() });
+
+		struct TriWithAABB temp;
+		temp.tri = newtri;
+		temp.ymin = yminf;
+		temp.ymax = ymaxf;
+		temp.view_pos = viewspace_pos;
+		triwithAABB[i] = temp;
+	}
+	
+
+	const int BLOCK_ROWS = 8;
+	std::vector<std::future<void>> futures;
+
+	for (int y_begin = 0; y_begin < ImageHeight; y_begin += BLOCK_ROWS)
 	{
-		rasterize_triangle(newTriangles[i], viewspacePosArray[i]);
+		int y_end = std::min(y_begin + BLOCK_ROWS, ImageHeight);
+
+		auto fut = m_threadpool->AddRetTask([this, y_begin, y_end, ImageWidth, ImageHeight,
+			&triwithAABB]() mutable -> void
+			{
+				for (int y = y_begin; y < y_end; ++y)
+				{
+					for (size_t tri_idx = 0; tri_idx < triwithAABB.size(); tri_idx++)
+					{
+						const Triangle& tri = triwithAABB[tri_idx].tri;
+						const auto& view_pos = triwithAABB[tri_idx].view_pos;
+
+						auto v = tri.toVector4();
+						float yminf = triwithAABB[tri_idx].ymin;
+						float ymaxf = triwithAABB[tri_idx].ymax;
+
+						if (y < yminf - 1e-6f || y > ymaxf + 1e-6f)
+							continue;
+
+						auto x_array = getScanIntersectX(tri, static_cast<double>(y));
+						if (x_array.size() <= 1)
+							continue;
+
+						int left = static_cast<int>(std::ceil(x_array[0]));
+						int right = static_cast<int>(std::floor(x_array[1]));
+
+						for (int x = left; x <= right; ++x)
+						{
+							auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5f, y + 0.5f, tri.v);
+
+							float Z = 1.0f / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+							float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+							zp *= Z;
+
+							int idx = get_index(x, y);
+							if (zp < depth_buf[idx])
+							{
+								depth_buf[idx] = zp;
+
+								auto interpolated_color = interpolate(alpha, beta, gamma, tri.color[0], tri.color[1], tri.color[2], 1);
+								auto interpolated_normal = interpolate(alpha, beta, gamma, tri.normal[0], tri.normal[1], tri.normal[2], 1).normalized();
+								auto interpolated_texcoords = alpha * tri.tex_coords[0] + beta * tri.tex_coords[1] + gamma * tri.tex_coords[2];
+								auto interpolated_shadingcoords = interpolate(alpha, beta, gamma, view_pos[0], view_pos[1], view_pos[2], 1);
+
+								fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords,
+									m_textureImage ? &*m_textureImage : nullptr);
+								payload.view_pos = interpolated_shadingcoords;
+								auto pixel_color = texture_fragment_shader(payload);
+
+								set_pixel(Eigen::Vector2i(x, y), pixel_color);
+							}
+						}
+					}
+				}
+			});
+		futures.push_back(std::move(fut));
 	}
 
+	// 等待本帧所有光栅化任务全部完成
+	for (auto& f : futures)
+	{
+		if (f.valid())
+			f.wait();
+	}
+
+
+	auto delta = std::chrono::high_resolution_clock().now() - now;
+	std::chrono::milliseconds seconds = std::chrono::duration_cast<std::chrono::milliseconds>(delta);
+	std::cout << " one picture use " << seconds.count() << std::endl;
 	FinishRender();
+
+
 }
 
 void RasterizationDevice::SetTextureImage(TextureImage* textureImage)
@@ -317,7 +404,7 @@ void RasterizationDevice::SetTextureImage(TextureImage* textureImage)
 }
 void RasterizationDevice::set_pixel(const Eigen::Vector2i& point, const Eigen::Vector3f& color)
 {
-	int y = m_ImageSize.height()-point.y();
+	int y = m_ImageSize.height()-point.y(); //计算的数学坐标系 原点是左下角  Qt 图片原点是左上角
 	int x = point.x();
 	if (x < 0 || x >= m_ImageSize.width() || y < 0 || y >= m_ImageSize.height())
 		return;
@@ -329,6 +416,55 @@ void RasterizationDevice::set_pixel(const Eigen::Vector2i& point, const Eigen::V
 	QRgb* line = reinterpret_cast<QRgb*>(ImageBuffer[1]->scanLine(y));
 	line[x] = qRgb(r, g, b);
 }
+std::vector<double> RasterizationDevice::getScanIntersectX(const Triangle& tri, double y_scan)
+{
+	std::vector<double> xs;
+	// 三条边：0?1，1?2，2?0
+	const std::array<std::pair<int, int>, 3> edges{ {{0,1}, {1,2}, {2,0}} };
+
+	constexpr double eps = 1e-8;
+
+	for (const auto& e : edges)
+	{
+		int i0 = e.first;
+		int i1 = e.second;
+		const Vector4f& p0 = tri.v[i0];
+		const Vector4f& p1 = tri.v[i1];
+
+		double y0 = static_cast<double>(p0.y());
+		double y1 = static_cast<double>(p1.y());
+
+		// 水平边直接跳过，避免重复交点
+		if (std::abs(y1 - y0) < eps)
+			continue;
+
+		// 保证 p0.y < p1.y
+		const Vector4f* pa = &p0;
+		const Vector4f* pb = &p1;
+		if (y0 > y1)
+		{
+			std::swap(pa, pb);
+			std::swap(y0, y1);
+		}
+
+		// 半开区间 [y0 , y1)，光栅化标准：包含上边，排除下边，消除裂缝
+		if (y_scan < y0 - eps || y_scan >= y1)
+			continue;
+
+		// 插值系数 t
+		double t = (y_scan - y0) / (y1 - y0);
+		double x0 = static_cast<double>(pa->x());
+		double x1 = static_cast<double>(pb->x());
+		double x_intersect = x0 + t * (x1 - x0);
+
+		xs.push_back(x_intersect);
+	}
+
+	// x从小到大排序
+	std::sort(xs.begin(), xs.end());
+	return xs;
+}
+
 void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos)
 {
 
@@ -354,41 +490,79 @@ void  RasterizationDevice::rasterize_triangle(const Triangle& t, const std::arra
 	ymin = yminf;
 	ymax = ymaxf + 1;
 
-	for (int i = xmin; i < xmax; i++)
-	{
-		for (int j = ymin; j < ymax; j++)
-		{
-			if (insideTriangle(i + 0.5, j + 0.5, t.v))
+	for (int j = ymin; j < ymax; j++) {
+		auto x_array = getScanIntersectX(t, j);
+		if (x_array.size() <= 1) { continue; }
+		int left = x_array[0] ;
+		int right = x_array[1];
+
+
+		for (int i = left;i <= right; ++i) {
+			//Depth interpolated
+			auto [alpha, beta, gamma] = computeBarycentric2D(i + 0.5, j + 0.5, t.v);
+
+			float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+			float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+			zp *= Z;
+			float temp = depth_buf[get_index(i, j)];
+			if (zp < depth_buf[get_index(i, j)])
 			{
-				//Depth interpolated
-				auto [alpha, beta, gamma] = computeBarycentric2D(i + 0.5, j + 0.5, t.v);
+				depth_buf[get_index(i, j)] = zp;
+				auto interpolated_color = interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
+				auto interpolated_normal = interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1).normalized();
+				auto a1 = t.tex_coords[0];
+				auto a2 = t.tex_coords[1];
+				auto a3 = t.tex_coords[2];
+				auto interpolated_texcoords = alpha * a1 + beta * a2 + gamma * a3;
 
-				float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-				float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-				zp *= Z;
-				float temp = depth_buf[get_index(i, j)];
-				if (zp < depth_buf[get_index(i, j)])
-				{
-					depth_buf[get_index(i, j)] = zp;
-					auto interpolated_color = interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
-					auto interpolated_normal = interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1).normalized();
-					auto a1 =t.tex_coords[0];
-					auto a2 = t.tex_coords[1];
-					auto a3 = t.tex_coords[2];
-					auto interpolated_texcoords = alpha* a1 + beta * a2 + gamma * a3;
-				//	auto interpolated_texcoords =interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
-					auto interpolated_shadingcoords = interpolate(alpha, beta, gamma, view_pos[0], view_pos[1], view_pos[2], 1);
-					fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords, m_textureImage? &*m_textureImage: nullptr);
-					payload.view_pos = interpolated_shadingcoords;
+				auto interpolated_shadingcoords = interpolate(alpha, beta, gamma, view_pos[0], view_pos[1], view_pos[2], 1);
+				fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords, m_textureImage ? &*m_textureImage : nullptr);
+				payload.view_pos = interpolated_shadingcoords;
 
-				//	auto pixel_color = phong_fragment_shader(payload);
-					auto pixel_color = texture_fragment_shader(payload);
-					set_pixel(Eigen::Vector2i(i, j),pixel_color);
-				}
+
+				auto pixel_color = texture_fragment_shader(payload);
+				set_pixel(Eigen::Vector2i(i, j), pixel_color);
 			}
-		}
 
+		}
 	}
+
+
+	//for (int i = xmin; i < xmax; i++)
+	//{
+	//	for (int j = ymin; j < ymax; j++)
+	//	{
+	//		if (insideTriangle(i + 0.5, j + 0.5, t.v))
+	//		{
+	//			//Depth interpolated
+	//			auto [alpha, beta, gamma] = computeBarycentric2D(i + 0.5, j + 0.5, t.v);
+
+	//			float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+	//			float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+	//			zp *= Z;
+	//			float temp = depth_buf[get_index(i, j)];
+	//			if (zp < depth_buf[get_index(i, j)])
+	//			{
+	//				depth_buf[get_index(i, j)] = zp;
+	//				auto interpolated_color = interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
+	//				auto interpolated_normal = interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1).normalized();
+	//				auto a1 =t.tex_coords[0];
+	//				auto a2 = t.tex_coords[1];
+	//				auto a3 = t.tex_coords[2];
+	//				auto interpolated_texcoords = alpha* a1 + beta * a2 + gamma * a3;
+	//			
+	//				auto interpolated_shadingcoords = interpolate(alpha, beta, gamma, view_pos[0], view_pos[1], view_pos[2], 1);
+	//				fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords, m_textureImage? &*m_textureImage: nullptr);
+	//				payload.view_pos = interpolated_shadingcoords;
+
+	//			
+	//				auto pixel_color = texture_fragment_shader(payload);
+	//				set_pixel(Eigen::Vector2i(i, j),pixel_color);
+	//			}
+	//		}
+	//	}
+
+	//}
 
 }
 int RasterizationDevice::get_index(int x, int y)

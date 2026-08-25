@@ -9,11 +9,15 @@
 #include <qcolor.h>
 #include <atomic>
 #include "geometry.h"
+
 #include <qpainter.h>
 #include <chrono>
 #include <Eigen/Eigen>
 #include <array>
-class Triangle;
+//#include "TwoWayRender/include/threadpool.h"
+#include "Triangle.h"
+#include "../TwoWayRender/include/threadpool.h"
+//class Triangle;
 class MVPTransformer;
 class TextureImage;
 
@@ -22,6 +26,12 @@ class RasterizationDevice
 {
 
 public:
+	struct TriWithAABB
+	{
+		Triangle tri;
+		std::array<Eigen::Vector3f, 3> view_pos;
+		float ymin, ymax;
+	};
 	RasterizationDevice(const QSize& size);
 	~RasterizationDevice();
 	QImage* GetImage();
@@ -38,6 +48,7 @@ private:
 	void rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>&  view_pos);
 	void set_pixel(const Eigen::Vector2i& point, const Eigen::Vector3f& color);
 	int get_index(int x, int y);
+	std::vector<double> getScanIntersectX(const Triangle& tri, double y_scan);
 private:
 	std::vector<QImage*> ImageBuffer;
 	QSize m_ImageSize;
@@ -45,4 +56,6 @@ private:
 	MVPTransformer* m_transformer=nullptr;
 	std::vector<float> depth_buf;
 	TextureImage* m_textureImage = nullptr;
+
+	std::unique_ptr<ThreadPool> m_threadpool;
 };

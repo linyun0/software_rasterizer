@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 Project(MyTinyRender VERSION 1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED 17)
+set(CMAKE_AUTOMOC ON)
 
 set(glm_DIR Dependence/glm/share/glm)
 set(Eigen3_DIR ${PROJECT_SOURCE_DIR}/Dependence/eigen3)
@@ -10,20 +11,18 @@ set(Eigen3_DIR ${PROJECT_SOURCE_DIR}/Dependence/eigen3)
 find_package(Eigen3 REQUIRED)
 file(GLOB  UI_FILES ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.ui)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets OpenGLWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets OpenGLWidgets Quick Qml)
 
 
 #target_link_libraries(demo PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
-# Ìí¼ÓÕâĞ©ĞĞÀ´Õï¶Ï
-message(STATUS "ÏîÄ¿Ãû: ${PROJECT_NAME}")
-message(STATUS "µ±Ç°Ô´ÂëÄ¿Â¼: ${CMAKE_CURRENT_SOURCE_DIR}")
-message(STATUS "µ±Ç°¶ş½øÖÆÄ¿Â¼: ${CMAKE_CURRENT_BINARY_DIR}")
-message(STATUS "Éú³ÉÆ÷: ${CMAKE_GENERATOR}")
+# ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ©ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+message(STATUS "ï¿½ï¿½Ä¿ï¿½ï¿½: ${PROJECT_NAME}")
+message(STATUS "ï¿½ï¿½Ç°Ô´ï¿½ï¿½Ä¿Â¼: ${CMAKE_CURRENT_SOURCE_DIR}")
+message(STATUS "ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿Â¼: ${CMAKE_CURRENT_BINARY_DIR}")
+message(STATUS "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: ${CMAKE_GENERATOR}")
 file(GLOB SOURCE_DIR ${PROJECT_SOURCE_DIR}/*.cpp ${PROJECT_SOURCE_DIR}/*.h
 					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/*.cpp  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/*.h  
-					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/context/*.cc  
-					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/context/*.h  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.h  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.cpp  
 
@@ -44,9 +43,41 @@ target_link_libraries(${PROJECT_NAME}  PRIVATE
 "D:/Download/lib/assimp-vc143-mt.lib"
 Qt6::Core
 Qt6::Widgets
-Qt6::Gui  # ÏÔÊ½ 
+Qt6::Gui  # ï¿½ï¿½Ê½ 
 Qt6::OpenGLWidgets   
 glm::glm
 Eigen3::Eigen
+)
+
+# CPU + OpenGL åŒæ¨¡å¼æ”¹é€ é¡¹ç›®ï¼ˆæ–°é¡¹ç›®ï¼‰
+qt_add_resources(TWO_WAY_RENDER_SOURCES TwoWayRender/qml.qrc)
+
+add_executable(TwoWayRender
+    TwoWayRender/main.cpp
+    TwoWayRender/RenderController.cpp
+    TwoWayRender/CpuRenderView.cpp
+    TwoWayRender/src/threadpool.cpp
+    TinyRenderSrc/DataLoader.cpp
+    TinyRenderSrc/Triangle.cpp
+    TinyRenderSrc/RasterizationDevice.cpp
+    TinyRenderSrc/MVPTransformer.cpp
+    #TinyRenderSrc/src/threadpool.cpp
+    ${TWO_WAY_RENDER_SOURCES}
+)
+message("PROJECT_SOURCE_DIR=" ${PROJECT_SOURCE_DIR})
+target_include_directories(TwoWayRender PRIVATE
+    ${PROJECT_SOURCE_DIR}/TinyRenderSrc
+    ${PROJECT_SOURCE_DIR}/TwoWayRender
+    #${PROJECT_SOURCE_DIR}/TwoWayRender/include
+#    ${PROJECT_SOURCE_DIR}/TinyRenderSrc/include
+    "D:/Download/include"
+)
+
+target_link_libraries(TwoWayRender PRIVATE
+    Qt6::Quick
+    Qt6::Qml
+    "D:/Download/lib/assimp-vc143-mt.lib"
+    glm::glm
+    Eigen3::Eigen
 )
 

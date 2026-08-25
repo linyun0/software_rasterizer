@@ -35,7 +35,7 @@ DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 	m_device->SetMVPTransformer(mvptransformer);
 
 
-	m_textureImage = new TextureImage("D:/spot_texture.png");
+	m_textureImage = new TextureImage(m_model->directory + "/spot_texture.png");
 	m_device->SetTextureImage(m_textureImage);
 	//connect(&m_timer, &QTimer::timeout, this,[=](){
 	//	m_testangle += 30;
