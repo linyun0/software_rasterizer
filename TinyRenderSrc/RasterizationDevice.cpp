@@ -1,4 +1,4 @@
-#include "RasterizationDevice.h"
+ï»¿#include "RasterizationDevice.h"
 #include <QPainter>
 
 #include "MVPTransformer.h"
@@ -30,12 +30,10 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 	Eigen::Vector3f return_color = { 0, 0, 0 };
 	if (payload.texture)
 	{
-		// TODO: Get the texture value at the texture coordinates of the current fragment
 		return_color = payload.texture->getColor(payload.tex_coords.x(), payload.tex_coords.y());
 	}
 	Eigen::Vector3f texture_color;
 	texture_color << return_color.x(), return_color.y(), return_color.z();
-	//texture_color << 255, 0, 0;
 
 	Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);
 	Eigen::Vector3f kd = texture_color / 255.f;
@@ -349,7 +347,7 @@ void RasterizationDevice::Draw()
 
 						int left = static_cast<int>(std::ceil(x_array[0]));
 						int right = static_cast<int>(std::floor(x_array[1]));
-
+						
 						for (int x = left; x <= right; ++x)
 						{
 							auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5f, y + 0.5f, tri.v);
@@ -375,6 +373,8 @@ void RasterizationDevice::Draw()
 
 								set_pixel(Eigen::Vector2i(x, y), pixel_color);
 							}
+	
+							
 						}
 					}
 				}
@@ -382,7 +382,7 @@ void RasterizationDevice::Draw()
 		futures.push_back(std::move(fut));
 	}
 
-	// µÈ´ı±¾Ö¡ËùÓĞ¹âÕ¤»¯ÈÎÎñÈ«²¿Íê³É
+	// ç­‰å¾…æœ¬å¸§æ‰€æœ‰å…‰æ …åŒ–ä»»åŠ¡å…¨éƒ¨å®Œæˆ
 	for (auto& f : futures)
 	{
 		if (f.valid())
@@ -392,7 +392,7 @@ void RasterizationDevice::Draw()
 
 	auto delta = std::chrono::high_resolution_clock().now() - now;
 	std::chrono::milliseconds seconds = std::chrono::duration_cast<std::chrono::milliseconds>(delta);
-	std::cout << " one picture use " << seconds.count() << std::endl;
+	std::cout << " one picture use " << seconds.count() <<" milliseconds" << std::endl;
 	FinishRender();
 
 
@@ -404,7 +404,7 @@ void RasterizationDevice::SetTextureImage(TextureImage* textureImage)
 }
 void RasterizationDevice::set_pixel(const Eigen::Vector2i& point, const Eigen::Vector3f& color)
 {
-	int y = m_ImageSize.height()-point.y(); //¼ÆËãµÄÊıÑ§×ø±êÏµ Ô­µãÊÇ×óÏÂ½Ç  Qt Í¼Æ¬Ô­µãÊÇ×óÉÏ½Ç
+	int y = m_ImageSize.height()-point.y(); //è®¡ç®—çš„æ•°å­¦åæ ‡ç³» åŸç‚¹æ˜¯å·¦ä¸‹è§’  Qt å›¾ç‰‡åŸç‚¹æ˜¯å·¦ä¸Šè§’
 	int x = point.x();
 	if (x < 0 || x >= m_ImageSize.width() || y < 0 || y >= m_ImageSize.height())
 		return;
@@ -419,7 +419,7 @@ void RasterizationDevice::set_pixel(const Eigen::Vector2i& point, const Eigen::V
 std::vector<double> RasterizationDevice::getScanIntersectX(const Triangle& tri, double y_scan)
 {
 	std::vector<double> xs;
-	// ÈıÌõ±ß£º0?1£¬1?2£¬2?0
+	// ä¸‰æ¡è¾¹ï¼š0â€‘1ï¼Œ1â€‘2ï¼Œ2â€‘0
 	const std::array<std::pair<int, int>, 3> edges{ {{0,1}, {1,2}, {2,0}} };
 
 	constexpr double eps = 1e-8;
@@ -434,11 +434,11 @@ std::vector<double> RasterizationDevice::getScanIntersectX(const Triangle& tri, 
 		double y0 = static_cast<double>(p0.y());
 		double y1 = static_cast<double>(p1.y());
 
-		// Ë®Æ½±ßÖ±½ÓÌø¹ı£¬±ÜÃâÖØ¸´½»µã
+		// æ°´å¹³è¾¹ç›´æ¥è·³è¿‡ï¼Œé¿å…é‡å¤äº¤ç‚¹
 		if (std::abs(y1 - y0) < eps)
 			continue;
 
-		// ±£Ö¤ p0.y < p1.y
+		// ä¿è¯ p0.y < p1.y
 		const Vector4f* pa = &p0;
 		const Vector4f* pb = &p1;
 		if (y0 > y1)
@@ -447,11 +447,11 @@ std::vector<double> RasterizationDevice::getScanIntersectX(const Triangle& tri, 
 			std::swap(y0, y1);
 		}
 
-		// °ë¿ªÇø¼ä [y0 , y1)£¬¹âÕ¤»¯±ê×¼£º°üº¬ÉÏ±ß£¬ÅÅ³ıÏÂ±ß£¬Ïû³ıÁÑ·ì
+		// åŠå¼€åŒºé—´ [y0 , y1)ï¼Œå…‰æ …åŒ–æ ‡å‡†ï¼šåŒ…å«ä¸Šè¾¹ï¼Œæ’é™¤ä¸‹è¾¹ï¼Œæ¶ˆé™¤è£‚ç¼
 		if (y_scan < y0 - eps || y_scan >= y1)
 			continue;
 
-		// ²åÖµÏµÊı t
+		// æ’å€¼ç³»æ•° t
 		double t = (y_scan - y0) / (y1 - y0);
 		double x0 = static_cast<double>(pa->x());
 		double x1 = static_cast<double>(pb->x());
@@ -460,7 +460,7 @@ std::vector<double> RasterizationDevice::getScanIntersectX(const Triangle& tri, 
 		xs.push_back(x_intersect);
 	}
 
-	// x´ÓĞ¡µ½´óÅÅĞò
+	// xä»å°åˆ°å¤§æ’åº
 	std::sort(xs.begin(), xs.end());
 	return xs;
 }

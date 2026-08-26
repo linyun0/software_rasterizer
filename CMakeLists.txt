@@ -25,6 +25,8 @@ file(GLOB SOURCE_DIR ${PROJECT_SOURCE_DIR}/*.cpp ${PROJECT_SOURCE_DIR}/*.h
 					 ${PROJECT_SOURCE_DIR}/TinyRenderSrc/*.h  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.h  
 					 ${PROJECT_SOURCE_DIR}/TinyRenderUI/*.cpp  
+					 ${PROJECT_SOURCE_DIR}/TwoWayRender/src/*.cpp  
+					 ${PROJECT_SOURCE_DIR}/TwoWayRender/include/*.h  
 
 )
 message(${SOURCE_DIR})
@@ -33,9 +35,6 @@ message("PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR})
 #add_subdirectory(${PROJECT_SOURCE_DIR}/Dependence/eigen3)
 add_executable(${PROJECT_NAME} ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS} "TinyRenderSrc/Triangle.h" "TinyRenderSrc/Triangle.cpp" "TinyRenderSrc/MVPTransformer.h" "TinyRenderSrc/Shader.h")
 find_package(glm CONFIG REQUIRED)
-
-
-
 
 target_include_directories(${PROJECT_NAME} PUBLIC "D:/Download/include")
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_BINARY_DIR})
