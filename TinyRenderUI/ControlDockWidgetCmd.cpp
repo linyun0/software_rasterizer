@@ -2,9 +2,18 @@
 #include <qmessagebox.h>
 #include "ControlDockWidget.h"
 #include "DrawAreaWidget.h"
-ControlDockWidgetCmd::ControlDockWidgetCmd(DrawAreaWidget* drawArea)
+#include "HexagonGridWidget.h"
+ControlDockWidgetCmd::ControlDockWidgetCmd(std::shared_ptr<DrawAreaWidget> drawArea)
 {
 	m_DrawArea= drawArea;
+	m_hexa_color_dialog = std::make_shared<HexagonGridWidget>();
+	m_hexa_color_dialog->setParent(dlgBox);
+	
+	m_hexa_color_dialog->setFunc([this](QColor color) {this->GetColor(color); });
+}
+
+void ControlDockWidgetCmd::GetColor(QColor color) {
+	m_DrawArea->LightColorChanged(color);
 }
 
 void ControlDockWidgetCmd::Activate(DlgControl* control)
@@ -47,7 +56,8 @@ void ControlDockWidgetCmd::Activate(DlgControl* control)
 	}
 	case TinyRender_LoadData:
 	{
-		m_DrawArea->SetModeArc(30, 2);
+		m_hexa_color_dialog->show();
+		//m_DrawArea->SetModeArc(30, 2);
 		break;
 	}
 	case TinyRender_DrawTriangle_PushButton:

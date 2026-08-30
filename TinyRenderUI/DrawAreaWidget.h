@@ -3,6 +3,7 @@
 #include <QImage>
 #include <QTimer>
 #include <memory>
+#include <QColor>
 class Camera;
 class Model;
 class Vertex;
@@ -23,7 +24,7 @@ public:
 	DrawAreaWidget(QWidget* parent);
 	~DrawAreaWidget();
 
-	void SetModeArc(const float& angle, const float& scale);
+	void LightColorChanged(QColor color);
 private:
 	void BuildConnection();
 	void BreakConnection();

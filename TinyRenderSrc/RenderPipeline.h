@@ -31,6 +31,7 @@ public:
 	void SetTextureImage(std::shared_ptr<TextureImage> in_textureImage);
 
 	void Render(const std::vector<std::shared_ptr<Triangle>>& triangle_array,std::shared_ptr<QImage> image);
+	void LightColorChanged(const QColor& in_color);
 private:
 	Eigen::Matrix4f GetMvpMatrix();
 	Eigen::Matrix4f GetMvMatrix();
@@ -52,4 +53,6 @@ private:
 	
 	std::shared_ptr<TextureImage> m_textureImage;
 	std::shared_ptr<QImage> m_image;
+
+	QColor m_lightColor;
 };

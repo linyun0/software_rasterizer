@@ -33,7 +33,7 @@ DrawAreaWidget::DrawAreaWidget(QWidget* parent):QWidget(parent){
 	
 	m_modeltransformer = std::make_shared<ModelTransform>();
 	m_camera = std::make_shared<ViewTransform>();
-	m_camera->setLookAt({ 0,0,5 }, { 0,0,0 }, { 0,1,0 });
+	m_camera->setLookAt({ 0,0,-5 }, { 0,0,0 }, { 0,1,0 });
 
 	float ration = this->width() / this->height();
 
@@ -79,12 +79,10 @@ DrawAreaWidget::~DrawAreaWidget()
 }
 
 
-	
-
-
-void DrawAreaWidget::SetModeArc(const float& angle, const float& scale)
-{
-	QApplication::restoreOverrideCursor();
+void DrawAreaWidget::LightColorChanged(QColor color) {
+	m_renderpipline->LightColorChanged(color);
+	Render();
+	this->update();
 }
 void DrawAreaWidget::BuildConnection()
 {

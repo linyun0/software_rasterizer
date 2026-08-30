@@ -9,7 +9,7 @@ TinyRenderMainWindow::TinyRenderMainWindow(QWidget* parent):QMainWindow(parent)
 	this->setCentralWidget(m_drawArea.get());
 	
 
-	cmd = std::make_shared<ControlDockWidgetCmd>(m_drawArea.get());
+	cmd = std::make_shared<ControlDockWidgetCmd>(m_drawArea);
 	cmd->init();
 
 	m_dockWidget = std::make_shared<QDockWidget>(cmd->GetDialog());

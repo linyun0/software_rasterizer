@@ -3,7 +3,7 @@
 #include "ViewportTransform.h"
 #include "modeltransform.h"
 #include "ProjectionTransform.h"
-
+#include <QColor>
 #include "threadpool.h"
 #include "Shader.h"
 #include "Texture.h"
@@ -17,13 +17,15 @@ struct light
 	Eigen::Vector3f position;
 	Eigen::Vector3f intensity;
 };
-static Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
+// 新增参数：const QColor& lightTintColor 光照染色
+static Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload, const QColor& lightTintColor)
 {
 	Eigen::Vector3f return_color = { 0, 0, 0 };
 	if (payload.texture)
 	{
 		return_color = payload.texture->getColor(payload.tex_coords.x(), payload.tex_coords.y());
 	}
+
 	Eigen::Vector3f texture_color;
 	texture_color << return_color.x(), return_color.y(), return_color.z();
 
@@ -31,42 +33,49 @@ static Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& pa
 	Eigen::Vector3f kd = texture_color / 255.f;
 	Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
 
-	auto l1 = light{ {20, 20, 20}, {800, 200, 200} };
-	auto l2 = light{ {-20, 20, 0}, {800, 200, 200} };
-
+	auto l1 = light{ {20, 20, 20}, {500, 500, 500} };
+	auto l2 = light{ {-20, 20, 0}, {500, 500, 500} };
 	std::vector<light> lights = { l1, l2 };
-	Eigen::Vector3f amb_light_intensity{ 10, 10, 10 };
-	Eigen::Vector3f eye_pos{ 0, 0, 10 };
 
+	Eigen::Vector3f amb_light_intensity{ 10, 10, 10 };
+	Eigen::Vector3f eye_pos{ 0, 0, 0 };
 	float p = 150;
 
-	Eigen::Vector3f color = texture_color;
 	Eigen::Vector3f point = payload.view_pos;
 	Eigen::Vector3f normal = payload.normal;
 
+	// 将QColor转为Eigen::Vector3f，范围0~1
+	Eigen::Vector3f tint(
+		lightTintColor.redF(),
+		lightTintColor.greenF(),
+		lightTintColor.blueF()
+	);
+
 	Eigen::Vector3f result_color = { 0, 0, 0 };
-	Eigen::Vector3f ambient = ka * amb_light_intensity[0];
+	Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
 
 	for (auto& light : lights)
 	{
-		// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
-		// components are. Then, accumulate that result on the *result_color* object.
 		float r2 = (light.position - point).dot((light.position - point));
 		Eigen::Vector3f l = (light.position - point).normalized();
 		Eigen::Vector3f n = normal.normalized();
 		Eigen::Vector3f v = (eye_pos - point).normalized();
 		Eigen::Vector3f h = (l + v).normalized();
 
-		Eigen::Vector3f diffuse = (kd * light.intensity[0] / r2) * std::max(0.0f, n.dot(l));
-		Eigen::Vector3f specular = (ks * light.intensity[0] / r2) * std::pow(std::max(0.f, (n.dot(h))), p);
+		// 光源强度 * 染色颜色 tint
+		Eigen::Vector3f realLightIntensity = light.intensity.cwiseProduct(tint);
+
+		Eigen::Vector3f diffuse = (kd.cwiseProduct(realLightIntensity) / r2) * std::max(0.0f, n.dot(l));
+		Eigen::Vector3f specular = (ks.cwiseProduct(realLightIntensity) / r2) * std::pow(std::max(0.f, n.dot(h)), p);
 
 		result_color += (diffuse + specular);
 	}
+
 	result_color += ambient;
 	return result_color;
 }
 
-RenderPipeline::RenderPipeline() {
+RenderPipeline::RenderPipeline():m_lightColor(255,255,255) {
 
 	m_threadpool = std::make_unique<ThreadPool>(std::thread::hardware_concurrency());
 	m_threadpool->Start();
@@ -188,7 +197,9 @@ static Eigen::Vector3f interpolate(float alpha, float beta, float gamma, const E
 {
 	return (alpha * vert1 + beta * vert2 + gamma * vert3) / weight;
 }
-
+void RenderPipeline::LightColorChanged(const QColor& in_color) {
+	m_lightColor = in_color;
+}
 void RenderPipeline::Render(const std::vector<std::shared_ptr<Triangle>>& triangle_array, std::shared_ptr<QImage> image) {
 	m_image = image;
 	std::vector<float> depth_buf(m_image->height()*m_image->width());
@@ -253,7 +264,7 @@ void RenderPipeline::Render(const std::vector<std::shared_ptr<Triangle>>& triang
 								fragment_shader_payload payload(interpolated_color, interpolated_normal, interpolated_texcoords,
 									m_textureImage ? m_textureImage.get() : nullptr);
 								payload.view_pos = interpolated_shadingcoords;
-								auto pixel_color = texture_fragment_shader(payload);
+								auto pixel_color = texture_fragment_shader(payload, m_lightColor);
 
 								set_pixel(Eigen::Vector2i(x, y), pixel_color);
 							}

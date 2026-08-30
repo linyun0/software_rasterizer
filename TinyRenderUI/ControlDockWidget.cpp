@@ -24,7 +24,7 @@ ControlDockWidget::ControlDockWidget(QWidget* parent, DialogCmd* cmd)
   //  m_mainLayout->setMargin(0);
     m_mainLayout->setSpacing(0);
 
-    QPushButton* SubjectButton1 = new QPushButton(("Rotation"), m_container);
+    QPushButton* SubjectButton1 = new QPushButton(("ColorDialog"), m_container);
     SubjectButton1->setObjectName("LoadDataPushButton");
     // connect(m_toggleButton, &QPushButton::clicked, this, &CustomDockWidget::toggleWidgetVisibility);
     m_mainLayout->addWidget(SubjectButton1);
