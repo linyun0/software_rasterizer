@@ -192,7 +192,7 @@ RasterizationDevice::~RasterizationDevice()
 
 QImage* RasterizationDevice::GetImage()
 {
-	return ImageBuffer[1];
+	return ImageBuffer[0];
 }
 
 void RasterizationDevice::SetViewPortSize(const QSize& size)
@@ -222,7 +222,7 @@ void RasterizationDevice::SetImageSize(const QSize& size)
 	}
 	depth_buf.resize(m_ImageSize.width() * m_ImageSize.height());
 }
-void RasterizationDevice::SetTriangles(const std::vector<Triangle*>& triangles)
+void RasterizationDevice::SetTriangles(const std::vector<std::shared_ptr<Triangle>>& triangles)
 {
 	m_triangles = triangles;
 }

@@ -5,6 +5,19 @@ ViewportTransform::ViewportTransform(int width, int height, float near, float fa
 {
 }
 
+int ViewportTransform::GetWidth() const {
+    return m_width;
+}
+int ViewportTransform::GetHeight()const {
+    return m_height;
+}
+float ViewportTransform::GetNear() const {
+    return m_near;
+}
+float ViewportTransform::GetFar() const {
+    return  m_far;
+}
+
 Eigen::Matrix4f ViewportTransform::GetMatrix() const
 {
     Eigen::Matrix4f mat = Eigen::Matrix4f::Identity();

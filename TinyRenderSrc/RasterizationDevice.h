@@ -40,7 +40,7 @@ public:
 	void FinishRender();
 	void SetImageSize(const QSize& size);
 
-	void SetTriangles(const std::vector<Triangle*>& triangles);
+	void SetTriangles(const std::vector<std::shared_ptr<Triangle>>& triangles);
 	void SetMVPTransformer(MVPTransformer* transformer);
 	void Draw();
 	void SetTextureImage(TextureImage* textureImage);
@@ -49,10 +49,12 @@ private:
 	void set_pixel(const Eigen::Vector2i& point, const Eigen::Vector3f& color);
 	int get_index(int x, int y);
 	std::vector<double> getScanIntersectX(const Triangle& tri, double y_scan);
+
+
 private:
 	std::vector<QImage*> ImageBuffer;
 	QSize m_ImageSize;
-	std::vector<Triangle*> m_triangles;
+	std::vector<std::shared_ptr<Triangle>> m_triangles;
 	MVPTransformer* m_transformer=nullptr;
 	std::vector<float> depth_buf;
 	TextureImage* m_textureImage = nullptr;

@@ -13,45 +13,35 @@ class ViewTransform
 public:
     ViewTransform();
 
-    //======== LookAt 模式接口 =========
     void setLookAt(const Eigen::Vector3f& cameraPos,
         const Eigen::Vector3f& target,
-        const Eigen::Vector3f& up = Eigen::Vector3f::UnitY());
+        const Eigen::Vector3f& up);
 
-    //======== FPS 欧拉角模式（yaw偏航，pitch俯仰，角度制）========
-    void setPosition(const Eigen::Vector3f& pos);
-    void setYawPitch(float yawDeg, float pitchDeg);
-    void rotateYaw(float deltaYawDeg);
-    void rotatePitch(float deltaPitchDeg);
-
-    // 相机前后左右移动（沿相机局部坐标系）
-    void moveForward(float dist);
-    void moveRight(float dist);
-    void moveUp(float dist);
-
-    // 重置相机
-    void reset();
-
-    // 获取 View矩阵
     Eigen::Matrix4f getViewMatrix() const;
 
-    // 调试：获取相机参数
-    Eigen::Vector3f getCameraPosition() const;
-    Eigen::Vector3f getCameraFront() const;
+    // 世界空间整体平移
+    void translateWorld(const Eigen::Vector3f& delta);
+
+    /// 绕 target点旋转：构造旋转矩阵，变换相机相对于target的偏移
+    void rotateAroundTargetByMatrix(const Eigen::Vector3f& axis, float angleDeg);
+
+    /// 沿视线方向靠近远离，构造平移矩阵更新camPos
+    void moveAlongViewDirByMatrix(float dist);
+
+    /// 画面平移pan，构造平移矩阵同时移动camPos与target
+    void panCameraByMatrix(float rightDist, float upDist);
+
+    void SetPos(const Eigen::Vector3f& pos);
+
+        // 绕世界Y轴旋转
+        void rotateAroundY(float angleDeg);
+    // 绕世界X轴旋转
+    void rotateAroundX(float angleDeg);
 
 private:
-    void updateView() const;
+    Eigen::Matrix4f computeLookAtMatrix() const;
 
-    // 模式1：LookAt参数
     Eigen::Vector3f m_camPos;
     Eigen::Vector3f m_target;
     Eigen::Vector3f m_up;
-
-    // 模式2：FPS欧拉角
-    float m_yawDeg;
-    float m_pitchDeg;
-
-    // 缓存与脏标记
-    mutable Eigen::Matrix4f m_cachedView;
-    mutable bool m_isDirty;
 };

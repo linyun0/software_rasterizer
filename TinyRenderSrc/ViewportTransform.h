@@ -17,6 +17,10 @@ public:
      * @param far  视锥体远裁剪面(眼空间)
      */
     ViewportTransform(int width, int height, float near, float far);
+    int GetWidth() const;
+    int GetHeight() const;
+    float GetNear() const;
+    float GetFar() const;
 
     // Games101 视口矩阵：
     // X,Y:NDC[-1,1] →屏幕像素

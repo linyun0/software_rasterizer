@@ -7,7 +7,7 @@ enum CameraPara { FOV, NEAR };
 class Camera
 {
 public:
-    Camera() {}
+    Camera() = default;
 
     void SetViewFrustum(float fov, float aspect, float near, float far);
     void SetCamera(const glm::vec3& position, const glm::vec3& target,const glm::vec3& up=glm::vec3{0,1,0});
