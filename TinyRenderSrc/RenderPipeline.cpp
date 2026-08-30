@@ -4,7 +4,7 @@
 #include "modeltransform.h"
 #include "ProjectionTransform.h"
 
-#include "../TwoWayRender/include/threadpool.h"
+#include "threadpool.h"
 #include "Shader.h"
 #include "Texture.h"
 static auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
@@ -31,8 +31,8 @@ static Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& pa
 	Eigen::Vector3f kd = texture_color / 255.f;
 	Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
 
-	auto l1 = light{ {20, 20, 20}, {500, 500, 500} };
-	auto l2 = light{ {-20, 20, 0}, {500, 500, 500} };
+	auto l1 = light{ {20, 20, 20}, {800, 200, 200} };
+	auto l2 = light{ {-20, 20, 0}, {800, 200, 200} };
 
 	std::vector<light> lights = { l1, l2 };
 	Eigen::Vector3f amb_light_intensity{ 10, 10, 10 };
@@ -208,7 +208,7 @@ void RenderPipeline::Render(const std::vector<std::shared_ptr<Triangle>>& triang
 	{
 		int y_end = std::min(y_begin + BLOCK_ROWS, ImageHeight);
 
-		auto fut = m_threadpool->AddRetTask([this, y_begin, y_end, ImageWidth, ImageHeight,
+		auto fut = m_threadpool->AddRetTask([this, y_begin, y_end, ImageWidth, ImageHeight,  //多线程加速
 			&triwithAABB,&depth_buf]() mutable -> void
 			{
 				for (int y = y_begin; y < y_end; ++y)
@@ -274,18 +274,13 @@ void RenderPipeline::Render(const std::vector<std::shared_ptr<Triangle>>& triang
 	}
 
 	auto end_time = std::chrono::high_resolution_clock::now();
-	auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
-	float fps = 0;
-	if(seconds.count()!=0)
-	{
-		float fps = 1 / seconds.count();
-	}
+	auto seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+	float ms = (float)seconds.count();
+	float fps = ms > 0 ? 1000.0f / ms : 0;
+
 	
 	drawFpsOnImage(fps);
-	static int id = 0;
-	++id;
-	QString name = QString(std::to_string(id).c_str()) + "image.png";
-	bool state = m_image->save(name);
+
 }
 
 void RenderPipeline::drawFpsOnImage(double fps)

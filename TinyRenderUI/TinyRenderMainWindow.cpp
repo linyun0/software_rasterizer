@@ -5,16 +5,16 @@
 
 TinyRenderMainWindow::TinyRenderMainWindow(QWidget* parent):QMainWindow(parent)
 {
-	m_drawArea = new DrawAreaWidget(this);
-	this->setCentralWidget(m_drawArea);
+	m_drawArea = std::make_shared<DrawAreaWidget>(this);
+	this->setCentralWidget(m_drawArea.get());
 	
 
-	cmd = new ControlDockWidgetCmd(m_drawArea);
+	cmd = std::make_shared<ControlDockWidgetCmd>(m_drawArea.get());
 	cmd->init();
 
-	m_dockWidget = new QDockWidget(cmd->GetDialog());
+	m_dockWidget = std::make_shared<QDockWidget>(cmd->GetDialog());
 	m_dockWidget->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-	this->addDockWidget(Qt::RightDockWidgetArea, m_dockWidget);
+	this->addDockWidget(Qt::RightDockWidgetArea, m_dockWidget.get());
 	m_dockWidget->setWidget(cmd->GetDialog());
 
 	this->setMinimumSize(1000, 1000);
@@ -22,10 +22,5 @@ TinyRenderMainWindow::TinyRenderMainWindow(QWidget* parent):QMainWindow(parent)
 
 TinyRenderMainWindow::~TinyRenderMainWindow()
 {
-	if (m_drawArea) {
-		delete m_drawArea;
-	}
-	if (cmd) {
-		delete cmd;
-	}
+
 }

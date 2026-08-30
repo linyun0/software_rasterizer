@@ -22,7 +22,7 @@ file(GLOB SOURCE_DIR ${PROJECT_SOURCE_DIR}/*.cpp ${PROJECT_SOURCE_DIR}/*.h
 
 )
 
-add_executable(${PROJECT_NAME} ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS} "TinyRenderSrc/Triangle.h" "TinyRenderSrc/Triangle.cpp" "TinyRenderSrc/MVPTransformer.h" "TinyRenderSrc/Shader.h")
+add_executable(${PROJECT_NAME} ${SOURCE_DIR} ${UI_FILES} ${UI_HEADERS} )
 
 target_include_directories(${PROJECT_NAME} PUBLIC "D:/Download/include"  ${PROJECT_SOURCE_DIR}/TinyRenderSrc/  ${PROJECT_SOURCE_DIR})
 

@@ -5,11 +5,11 @@ ViewportTransform::ViewportTransform(int width, int height, float near, float fa
 {
 }
 
-int ViewportTransform::GetWidth() const {
-    return m_width;
+void ViewportTransform::SetWidth(const int& in_width)  {
+    m_width = in_width;
 }
-int ViewportTransform::GetHeight()const {
-    return m_height;
+void ViewportTransform::SetHeight(const int& in_height) {
+    m_height = in_height;
 }
 float ViewportTransform::GetNear() const {
     return m_near;

@@ -2,6 +2,7 @@
 #include <QWidget>
 #include <qmainwindow.h>
 #include <QHBoxLayout>
+#include <memory>
 class DrawAreaWidget;
 class ControlDockWidgetCmd;
 class DialogCmd;
@@ -11,8 +12,9 @@ public:
 	TinyRenderMainWindow(QWidget* parent=nullptr);
 	~TinyRenderMainWindow();
 private:
-	DrawAreaWidget* m_drawArea = nullptr;
-	DialogCmd* cmd = nullptr;
-	QDockWidget* m_dockWidget = nullptr;
+	std::shared_ptr<DrawAreaWidget> m_drawArea = nullptr;
+	std::shared_ptr<DialogCmd> cmd = nullptr;
+	std::shared_ptr<QDockWidget> m_dockWidget = nullptr;
+
 	
 };

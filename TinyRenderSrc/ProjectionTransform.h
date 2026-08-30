@@ -16,7 +16,7 @@ public:
     /// @param zNear 近裁剪面 (>0)
     /// @param zFar 远裁剪面 (> zNear)
     ProjectionTransform(float eye_fov, float aspect_ratio, float zNear, float zFar);
-
+    void SetAspect(float in_aspect_ratio);
     // 更新透视投影参数
     void setPerspectiveParam(float eye_fov, float aspect_ratio, float zNear, float zFar);
 

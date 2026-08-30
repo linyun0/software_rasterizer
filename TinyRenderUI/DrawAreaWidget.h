@@ -38,14 +38,12 @@ private:
 	void mousePressEvent(QMouseEvent* event) override;
 private:
 	
-	QImage* m_showImage = nullptr;
-	Model* m_model=nullptr;
-	RasterizationDevice* m_device=nullptr;
-	QTimer m_timer;
-	std::vector<std::shared_ptr<Triangle>> TriangleList;
-	MVPTransformer* mvptransformer=nullptr;
-	std::shared_ptr<TextureImage> m_textureImage;
+	std::shared_ptr<QImage> m_showImage;
+	std::shared_ptr<Model> m_model;
 
+
+	std::vector<std::shared_ptr<Triangle>> TriangleList;
+	std::shared_ptr<TextureImage> m_textureImage;
 	std::shared_ptr<ModelTransform> m_modeltransformer;
 	std::shared_ptr<ViewTransform> m_camera;
 	std::shared_ptr<ProjectionTransform> m_projection;

@@ -17,8 +17,8 @@ public:
      * @param far  视锥体远裁剪面(眼空间)
      */
     ViewportTransform(int width, int height, float near, float far);
-    int GetWidth() const;
-    int GetHeight() const;
+    void SetWidth(const int& width) ;
+    void SetHeight(const int& height) ;
     float GetNear() const;
     float GetFar() const;
 

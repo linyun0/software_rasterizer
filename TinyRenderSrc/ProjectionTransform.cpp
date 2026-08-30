@@ -17,6 +17,10 @@ ProjectionTransform::ProjectionTransform(float eye_fov, float aspect_ratio, floa
 {
 }
 
+void ProjectionTransform::SetAspect(float in_aspect_ratio) {
+    m_aspect = in_aspect_ratio;
+}
+
 void ProjectionTransform::setPerspectiveParam(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
     m_fovDeg = eye_fov;
